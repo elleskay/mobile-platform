@@ -19,6 +19,13 @@ export interface NestjsApiProps {
   readonly servicePath: string;
 
   /**
+   * Monorepo root for esbuild bundling (where the root package-lock.json lives).
+   * Defaults to two levels above `servicePath` (the `services/<name>` layout).
+   * Override if your service sits elsewhere.
+   */
+  readonly monorepoRoot?: string;
+
+  /**
    * Environment variables set on both Lambdas. Include DATABASE_URL, JWT_SECRET,
    * and any classifier/observability keys. REPORTS_QUEUE_URL and
    * OPENSEARCH_ENDPOINT are injected by the construct, do not set them here.
@@ -108,19 +115,36 @@ export class NestjsApi extends Construct {
     }
 
     const bundling = {
-      // Nest relies on runtime metadata reflection; preserve decorators and
-      // keep the modules it lazily resolves external where the runtime provides
-      // them. The AWS SDK v3 is on the Lambda runtime already.
-      externalModules: ["@aws-sdk/*"],
+      // The AWS SDK v3 is on the Lambda runtime already. Nest's core lazily
+      // `require()`s optional transport packages (microservices, websockets)
+      // inside try/catch; they are not installed for a plain HTTP API, so mark
+      // them external to stop esbuild failing on the static require, and let
+      // Nest's optional-package loader no-op them at runtime.
+      externalModules: [
+        "@aws-sdk/*",
+        "@nestjs/microservices",
+        "@nestjs/microservices/*",
+        "@nestjs/websockets",
+        "@nestjs/websockets/*",
+      ],
       target: "node20",
       sourceMap: true,
       // serverless-express + Nest do some dynamic requires; let esbuild keep them.
       mainFields: ["module", "main"],
     };
 
+    // The Lambda entry lives in the service package (a sibling under the
+    // monorepo root), not under this CDK package. NodejsFunction otherwise infers
+    // a projectRoot from the entry and rejects it as PathNotUnderRoot. Anchor
+    // both at the monorepo root, where the entry and the root lockfile live.
+    // servicePath is <root>/services/<name>, so the root is two levels up.
+    const repoRoot = props.monorepoRoot ?? path.resolve(props.servicePath, "..", "..");
+
     const commonFn = {
       runtime: lambda.Runtime.NODEJS_20_X,
       architecture: lambda.Architecture.ARM_64,
+      projectRoot: repoRoot,
+      depsLockFilePath: path.join(repoRoot, "package-lock.json"),
       bundling,
       environment: {
         NODE_ENV: "production",
