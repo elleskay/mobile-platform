@@ -5,10 +5,9 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
-    # Group only minor + patch updates so majors come through as individual,
-    # reviewable PRs. Bundling majors (TypeScript 5->6, ESLint 9->10,
-    # Vitest 2->4, etc.) makes bisectability impossible if anything regresses
-    # and delays small security patches that would otherwise auto-merge.
+    # Group minor + patch so the noise is one or two PRs. Majors are suppressed
+    # by the ignore rules below (framework/toolchain majors are done deliberately,
+    # not auto-merged), so they no longer come through as individual PRs.
     groups:
       dev-dependencies:
         dependency-type: "development"
@@ -16,6 +15,41 @@ updates:
       production-dependencies:
         dependency-type: "production"
         update-types: ["minor", "patch"]
+    ignore:
+      # Expo SDK set: Expo 51 is locked to React Native 0.74 + React 18.2. Upgrade
+      # them together via the Expo upgrade guide (`expo install --fix`), never
+      # piecemeal, or the app build breaks.
+      - dependency-name: "expo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "expo-*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      # react-native is 0.x: a "minor" bump (0.74 -> 0.85) is breaking. Keep it on
+      # the Expo-aligned 0.74.x line; only patches flow automatically.
+      - dependency-name: "react-native"
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]
+      # NestJS packages must share a major; upgrade the whole set deliberately.
+      - dependency-name: "@nestjs/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "express"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/express"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@codegenie/serverless-express"
+        update-types: ["version-update:semver-major"]
+      # Toolchain majors: take deliberately, not as auto-merges.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -29,8 +63,18 @@ updates:
     directory: "/infra/cdk/_setup"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "npm"
     directory: "/infra/cdk/_template"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
