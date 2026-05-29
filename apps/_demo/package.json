@@ -13,7 +13,7 @@
     "doctor": "expo-doctor"
   },
   "dependencies": {
-    "expo": "~51.0.0",
+    "expo": "~56.0.8",
     "expo-constants": "~16.0.0",
     "expo-linking": "~6.3.0",
     "expo-router": "~3.5.0",
