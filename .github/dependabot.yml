@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    # Group only minor + patch updates so majors come through as individual,
+    # reviewable PRs. Bundling majors (TypeScript 5->6, ESLint 9->10,
+    # Vitest 2->4, etc.) makes bisectability impossible if anything regresses
+    # and delays small security patches that would otherwise auto-merge.
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      production-dependencies:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/infra/cdk/base"
+    schedule:
+      interval: "weekly"

@@ -1,0 +1,19 @@
+# Journey-level e2e: report a flagged message and see the confirmation. Covers
+# the full path the decomposed-journey trap hides in (UI -> API -> queue ->
+# receipt). The flow name carries the spec [ID].
+appId: com.elleskay.yourapp
+name: "[EX-REPORT-001] submit a report and receive a confirmation"
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "message-input"
+- inputText: "prize claim click http://evil.example"
+- tapOn:
+    id: "check-button"
+- assertVisible:
+    id: "verdict"
+- tapOn:
+    id: "report-button"
+- assertVisible:
+    id: "report-confirmation"

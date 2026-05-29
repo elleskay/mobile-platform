@@ -1,0 +1,28 @@
+{
+  "name": "app-cdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CDK scaffold for a NestJS API on Lambda + API Gateway + SQS. Rename to your app and edit bin/app.ts.",
+  "bin": {
+    "app-cdk": "bin/app.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy --all",
+    "diff": "cdk diff"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "aws-cdk": "^2.150.0",
+    "esbuild": "^0.23.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.150.0",
+    "constructs": "^10.3.0"
+  }
+}

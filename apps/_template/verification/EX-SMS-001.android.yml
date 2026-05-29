@@ -1,0 +1,10 @@
+# EXAMPLE placeholder, intentionally unsigned. See EX-SMS-001.ios.yml.
+requirement: EX-SMS-001
+platform: android
+app_version: 0.1.0
+os_tested: "14"
+device: Pixel 7
+date: 2026-05-20
+tester: replace-me
+evidence: https://example.com/evidence/ex-sms-001-android.mp4
+# signature: <run spec-attest to stamp>

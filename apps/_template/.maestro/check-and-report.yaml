@@ -1,0 +1,16 @@
+# Maestro e2e flow. The flow `name` carries the spec [ID]; `spec-maestro` reads
+# it from Maestro's JUnit output and records coverage. Run:
+#   maestro test .maestro --format junit --output maestro.xml
+#   spec-maestro --report maestro.xml
+appId: com.elleskay.yourapp
+name: "[EX-CHECK-001] check a suspicious message shows a verdict"
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "message-input"
+- inputText: "URGENT verify your bank http://evil.example"
+- tapOn:
+    id: "check-button"
+- assertVisible:
+    id: "verdict"

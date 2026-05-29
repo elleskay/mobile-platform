@@ -1,0 +1,89 @@
+# Copy into your app repo as .github/workflows/test.yml.
+# Unit + component (jest-expo) and attestations run on every push. The Maestro
+# e2e job runs on PRs and needs a device/emulator or Maestro Cloud. The
+# authoritative full gate (all layers merged) runs at release; see docs/TESTING.md.
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit-component:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run -w @platform/spec-test build
+      - run: npm run lint
+      - name: Jest (unit + component) on jest-expo
+        run: npm run test:unit
+      # Reports data/ui + native/manual artifact status. e2e is added by the
+      # maestro job; the full merged gate runs at release.
+      - name: Spec coverage (data/ui + native artifacts)
+        run: npx spec-coverage --spec specs/example.yml --verification-dir verification --app-version 0.1.0 || true
+
+  attestations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need history to find the commit that last touched each artifact
+      # Skips while verification/allowed-signers is empty and no artifact is
+      # signed; once you sign real artifacts, an empty allow-list is exit 2.
+      - run: bash scripts/verify-attestations.sh verification
+
+  # Real Android e2e on free GitHub-hosted ubuntu (KVM + reactivecircus emulator),
+  # no Maestro Cloud token. iOS journey e2e is intentionally left out: e2e here is
+  # journey-smoke, and the critical iOS behavior (call/SMS blocking) is proven in
+  # the native-artifact layer, not e2e, so macOS-runner cost is not justified yet.
+  e2e-maestro-android:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: npm ci
+      - run: npm run -w @platform/spec-test build
+      - name: Install Maestro
+        run: |
+          curl -Ls https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android --no-install
+      - name: Build debug APK
+        run: cd android && ./gradlew assembleDebug
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Run Maestro flows on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            maestro test .maestro --format junit --output maestro.xml
+            npx spec-maestro --report maestro.xml
+
+  # iOS journey e2e: intentionally not run (see ADR 0001). Enable on a nightly
+  # macOS schedule only if iOS-specific journey bugs actually appear.
+  e2e-maestro-ios:
+    runs-on: ubuntu-latest
+    if: false
+    steps:
+      - run: echo "iOS journey e2e is intentionally stubbed; critical iOS behavior is in the native-artifact layer."

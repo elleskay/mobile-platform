@@ -1,0 +1,117 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy
+        required: true
+        default: production
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-api-${{ github.event.inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+env:
+  # Override with repo variables if your paths differ from the convention.
+  API_DIR: ${{ vars.API_DIR || 'services/api' }}
+  CDK_DIR: ${{ vars.CDK_DIR || 'infra/cdk/_template' }}
+  NODE_VERSION: "22"
+
+jobs:
+  # Skip the deploy when secrets aren't configured, so the template repo itself
+  # (and any fresh fork before secrets are set) passes CI without a false
+  # failure. Apps with secrets configured deploy normally.
+  preflight:
+    name: Preflight (skip if not configured)
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - id: check
+        env:
+          ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          if [ -n "$ROLE_ARN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Deploy is configured. Proceeding."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::AWS_DEPLOY_ROLE_ARN secret is not set. Skipping deploy. Normal for the template repo itself; apps configure secrets per docs/SETUP.md."
+          fi
+
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment || 'production' }}
+    needs: preflight
+    if: needs.preflight.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      # Apply DB migrations before the new Lambda code (which may reference new
+      # columns/tables) goes live. Skipped if the API has no db/migrate.ts.
+      - name: Apply database migrations (if db/migrate.ts exists)
+        working-directory: ${{ env.API_DIR }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -f db/migrate.ts ]; then
+            npx tsx db/migrate.ts
+          else
+            echo "::notice::No db/migrate.ts found, skipping migration step"
+          fi
+
+      - name: Build API
+        working-directory: ${{ env.API_DIR }}
+        run: npm run build
+
+      - name: Install CDK dependencies
+        working-directory: ${{ env.CDK_DIR }}
+        run: npm ci
+
+      - name: CDK deploy
+        working-directory: ${{ env.CDK_DIR }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_ISSUER: ${{ vars.JWT_ISSUER }}
+          CLASSIFIER_API_URL: ${{ vars.CLASSIFIER_API_URL }}
+          CLASSIFIER_API_KEY: ${{ secrets.CLASSIFIER_API_KEY }}
+          ENABLE_OPENSEARCH: ${{ vars.ENABLE_OPENSEARCH }}
+        run: npx cdk deploy --all --require-approval never --outputs-file cdk-outputs.json
+
+      - name: Extract deployed API URL
+        id: cdk
+        working-directory: ${{ env.CDK_DIR }}
+        run: |
+          URL=$(node -e "const o=require('./cdk-outputs.json'); for(const k of Object.keys(o)) for(const k2 of Object.keys(o[k])) if(k2.endsWith('ApiUrl')) { console.log(o[k][k2]); break; }")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Deployed: $URL"
+
+      - name: Smoke test
+        run: ./scripts/verify-deploy.sh "${{ steps.cdk.outputs.url }}"

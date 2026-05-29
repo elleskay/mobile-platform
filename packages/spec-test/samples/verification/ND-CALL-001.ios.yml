@@ -1,0 +1,9 @@
+requirement: ND-CALL-001
+platform: ios
+app_version: 1.4.0
+os_tested: 18.3.1
+device: iPhone 13
+date: 2026-05-20
+tester: elleskay
+evidence: https://example.com/evidence/nd-call-001-ios.mp4
+signature: sha256:57c507841da28e7ccc6b5ca047f1df698d4c14e8ac5ee76ce2119dac24e58a2d

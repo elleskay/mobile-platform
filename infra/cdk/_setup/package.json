@@ -1,0 +1,26 @@
+{
+  "name": "platform-setup-cdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "One-time CDK stack that provisions the GitHub OIDC provider, IAM role, and cdk-deploy policy for a new app on this platform.",
+  "bin": {
+    "platform-setup-cdk": "bin/app.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "cdk": "cdk",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy --all",
+    "diff": "cdk diff"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "aws-cdk": "^2.150.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.150.0",
+    "constructs": "^10.3.0"
+  }
+}

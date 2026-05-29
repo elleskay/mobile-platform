@@ -1,0 +1,24 @@
+app: example
+version: 1
+requirements:
+  - id: EX-AUTH-001
+    title: Unauthenticated users are redirected to /login
+    category: security
+    severity: critical
+    given: User has no active session
+    when: User GETs /admin
+    then: Response is 307 redirect to /login
+  - id: EX-MATH-001
+    title: Score is round(ok / total * 100)
+    category: data
+    severity: high
+    given: A submission with 5 ok out of 6 items
+    when: Score is computed
+    then: Score equals 83
+  - id: EX-UI-001
+    title: Dropdown renders combobox with provided options
+    category: ui
+    severity: high
+    given: A template item with kind=dropdown and options=[a,b,c]
+    when: The submit page renders
+    then: A combobox with three options is visible

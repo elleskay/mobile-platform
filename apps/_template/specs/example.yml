@@ -1,0 +1,71 @@
+app: example
+version: 1
+requirements:
+  - id: EX-CHECK-001
+    title: User can check a suspicious message and see a verdict
+    category: functional
+    verify: e2e
+    platforms: [ios, android]
+    severity: high
+    given: the user is on the Check screen
+    when: they paste a message containing a link and a lure word, then tap Check
+    then: a SCAM or SUSPICIOUS verdict is shown with a reason
+    tags: [check-and-report]
+
+  - id: EX-CHECK-002
+    title: Clean messages are not flagged
+    category: data
+    verify: unit
+    severity: medium
+    given: the offline classifier
+    when: it scores an ordinary message with no links or lures
+    then: it returns a CLEAN verdict
+
+  - id: EX-CLASSIFY-001
+    title: Local heuristic flags link-plus-lure as scam
+    category: data
+    verify: unit
+    severity: high
+    given: the offline classifier
+    when: it scores a message with both a URL and an urgency lure
+    then: it returns verdict scam with score >= 0.8
+
+  - id: EX-CHECK-003
+    title: Check button is disabled until a message is entered
+    category: ui
+    verify: component
+    severity: medium
+    given: the Check screen has just rendered with an empty input
+    when: no text has been entered
+    then: the Check button is disabled, and enables once text is present
+
+  - id: EX-REPORT-001
+    title: A submitted report reaches the intake queue
+    category: functional
+    verify: e2e
+    platforms: [ios, android]
+    severity: critical
+    given: an authenticated user with a flagged message
+    when: they submit it as a report
+    then: the API enqueues it for processing and returns a report id
+    tags: [journey]
+
+  - id: EX-SMS-001
+    title: Known-scam SMS is filtered by the OS
+    category: functional
+    verify: native
+    platforms: [ios, android]
+    severity: critical
+    given: a device with SMS filtering enabled
+    when: a known-scam SMS arrives from an unknown sender
+    then: the OS routes it to the Junk folder
+    notes: Proven by a signed real-device artifact, not a JS test. See verification/.
+
+  - id: EX-SEC-001
+    title: No secrets are shipped in the mobile bundle
+    category: security
+    verify: manual
+    severity: critical
+    given: a release build of the app
+    when: the bundle is inspected
+    then: no API keys or signing secrets are present, only EXPO_PUBLIC_ values

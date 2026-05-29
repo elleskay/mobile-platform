@@ -1,0 +1,182 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  workflow-lint:
+    name: Workflow lint (actionlint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run actionlint
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: -color
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck --if-present
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint --if-present
+
+  app-check:
+    name: Expo app (typecheck + doctor)
+    runs-on: ubuntu-latest
+    needs: [typecheck, lint]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck demo app
+        working-directory: apps/_demo
+        run: npm run typecheck
+      - name: expo-doctor
+        working-directory: apps/_demo
+        run: npx --yes expo-doctor@latest || true
+
+  api-build:
+    name: Build demo API (NestJS)
+    runs-on: ubuntu-latest
+    needs: [typecheck, lint]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Nest build
+        working-directory: services/_template
+        run: npm run build
+
+  cdk-synth:
+    name: CDK synth (proves construct works against demo API)
+    runs-on: ubuntu-latest
+    needs: api-build
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install CDK package deps
+        working-directory: infra/cdk/_template
+        run: npm install
+      - name: cdk synth
+        working-directory: infra/cdk/_template
+        env:
+          CDK_DEFAULT_ACCOUNT: "000000000000"
+          CDK_DEFAULT_REGION: ap-southeast-1
+          DATABASE_URL: postgres://placeholder
+          JWT_SECRET: placeholder
+          PLATFORM_DEMO_API_PATH: services/_template
+        run: npx cdk synth
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test --if-present
+
+  spec-test:
+    name: spec-test (build + gate self-test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build @platform/spec-test (dual ESM + CJS)
+        working-directory: packages/spec-test
+        run: npm run build
+      - name: Validate sample spec
+        working-directory: packages/spec-test
+        run: node dist/cli.js --spec samples/example.spec.yml --coverage samples/results-full.jsonl --out /tmp/sample-report.md
+      - name: Gate fails on partial coverage (expected exit 1)
+        working-directory: packages/spec-test
+        run: |
+          set +e
+          node dist/cli.js --spec samples/example.spec.yml --coverage samples/results.jsonl --out /tmp/partial.md
+          rc=$?
+          set -e
+          if [ "$rc" != "1" ]; then
+            echo "expected exit 1 from partial coverage, got $rc"
+            exit 1
+          fi
+          echo "gate correctly exits 1 on partial coverage"
+      - name: Native gate passes with fresh, stamped artifacts (expected exit 0)
+        working-directory: packages/spec-test
+        run: node dist/cli.js --spec samples/native.spec.yml --coverage samples/native-results.jsonl --verification-dir samples/verification --app-version 1.4.0 --now 2026-05-25 --out /tmp/native.md
+      - name: Native gate fails when the app moved (expected exit 1)
+        working-directory: packages/spec-test
+        run: |
+          set +e
+          node dist/cli.js --spec samples/native.spec.yml --coverage samples/native-results.jsonl --verification-dir samples/verification --app-version 1.5.0 --now 2026-05-25 --out /tmp/native-stale.md
+          rc=$?
+          set -e
+          if [ "$rc" != "1" ]; then
+            echo "expected exit 1 from app-version staleness, got $rc"
+            exit 1
+          fi
+          echo "native gate correctly exits 1 when the app version moved"
+
+  attestations:
+    name: Native artifact attestations (layer B)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # need full history to find the commit that last touched each artifact
+      - name: Verify signed-commit attestations
+        # Skips while allowed-signers is empty (template default); enforces and
+        # fails closed once a real app populates it.
+        run: bash scripts/verify-attestations.sh apps/_template/verification
+      - name: Guard self-test (signed artifacts + empty allow-list must exit 2)
+        run: |
+          set +e
+          bash scripts/verify-attestations.sh packages/spec-test/samples/verification
+          rc=$?
+          set -e
+          if [ "$rc" != "2" ]; then
+            echo "expected exit 2 (accountability cannot be opt-in), got $rc"
+            exit 1
+          fi
+          echo "guard correctly exits 2 when signed artifacts have no allow-list"

@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "mobile-platform-demo",
+    "slug": "mobile-platform-demo",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "mpdemo",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.elleskay.mobileplatformdemo",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.elleskay.mobileplatformdemo",
+      "usesCleartextTraffic": false
+    },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

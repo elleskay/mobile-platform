@@ -1,0 +1,12 @@
+# SSH allowed-signers file (git gpg.ssh.allowedSignersFile format). Each line:
+#   <email-or-principal> namespaces="git" <ssh-public-key>
+#
+# Only the people listed here may attest native/manual verification artifacts.
+# This file is CODEOWNERS-protected (release/security reviewer). While it has no
+# real entries, scripts/verify-attestations.sh SKIPS (template default). Add the
+# testers' SSH signing public keys to activate enforcement, e.g.:
+#
+#   elleskay@example.com namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5...
+#
+# Testers must also sign commits: `git config gpg.format ssh` and
+# `git config user.signingkey <key>`, then commit with -S (or commit.gpgsign true).

@@ -1,0 +1,84 @@
+name: Mobile build
+
+# Builds and (optionally) submits the app via EAS, or ships a JS-only OTA update
+# via EAS Update. Native changes (new permissions, new extension) need a full
+# build; JS/asset-only changes can OTA. See docs/MOBILE.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS build profile
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
+      action:
+        description: build (store binary) or update (OTA)
+        required: true
+        default: build
+        type: choice
+        options:
+          - build
+          - update
+      submit:
+        description: Submit the build to the stores (production only)
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  APP_DIR: ${{ vars.APP_DIR || 'apps/_demo' }}
+  NODE_VERSION: "22"
+
+jobs:
+  preflight:
+    name: Preflight (skip if EAS not configured)
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - id: check
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -n "$EXPO_TOKEN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::EXPO_TOKEN secret is not set. Skipping. Normal for the template repo; set it per docs/MOBILE.md."
+          fi
+
+  eas:
+    name: EAS ${{ github.event.inputs.action }} (${{ github.event.inputs.profile }})
+    needs: preflight
+    if: needs.preflight.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: EAS build
+        if: github.event.inputs.action == 'build'
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          SUBMIT_FLAG=""
+          if [ "${{ github.event.inputs.submit }}" = "true" ]; then SUBMIT_FLAG="--auto-submit"; fi
+          eas build --non-interactive --profile "${{ github.event.inputs.profile }}" --platform all $SUBMIT_FLAG
+      - name: EAS update (OTA)
+        if: github.event.inputs.action == 'update'
+        working-directory: ${{ env.APP_DIR }}
+        run: eas update --non-interactive --branch "${{ github.event.inputs.profile }}" --message "ci: ${{ github.sha }}"
