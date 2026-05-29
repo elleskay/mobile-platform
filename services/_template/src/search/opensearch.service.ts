@@ -18,7 +18,7 @@ export interface IndexedReport {
 export class OpenSearchService {
   private readonly logger = new Logger(OpenSearchService.name);
   private readonly endpoint = process.env.OPENSEARCH_ENDPOINT;
-  private readonly index = "scam-reports";
+  private readonly indexName = "scam-reports";
 
   get enabled(): boolean {
     return Boolean(this.endpoint);
@@ -29,7 +29,7 @@ export class OpenSearchService {
       this.logger.debug("OpenSearch disabled; skipping index.");
       return;
     }
-    await fetch(`${this.endpoint}/${this.index}/_doc/${report.id}`, {
+    await fetch(`${this.endpoint}/${this.indexName}/_doc/${report.id}`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(report),
@@ -39,7 +39,7 @@ export class OpenSearchService {
   /** Returns ids of reports whose text is similar to the given one. */
   async findSimilar(text: string, limit = 10): Promise<string[]> {
     if (!this.enabled) return [];
-    const res = await fetch(`${this.endpoint}/${this.index}/_search`, {
+    const res = await fetch(`${this.endpoint}/${this.indexName}/_search`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

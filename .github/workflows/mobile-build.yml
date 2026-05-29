@@ -81,4 +81,5 @@ jobs:
       - name: EAS update (OTA)
         if: github.event.inputs.action == 'update'
         working-directory: ${{ env.APP_DIR }}
-        run: eas update --non-interactive --branch "${{ github.event.inputs.profile }}" --message "ci: ${{ github.sha }}"
+        run: |
+          eas update --non-interactive --branch "${{ github.event.inputs.profile }}" --message "ci: ${{ github.sha }}"

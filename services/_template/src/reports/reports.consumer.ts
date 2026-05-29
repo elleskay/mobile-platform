@@ -9,13 +9,13 @@ import { ReportsService } from "./reports.service";
 let service: ReportsService | undefined;
 
 async function getService(): Promise<ReportsService> {
-  if (!service) {
-    const app = await NestFactory.createApplicationContext(AppModule, {
-      logger: ["error", "warn", "log"],
-    });
-    service = app.get(ReportsService);
-  }
-  return service;
+  if (service) return service;
+  const app = await NestFactory.createApplicationContext(AppModule, {
+    logger: ["error", "warn", "log"],
+  });
+  const resolved = app.get(ReportsService);
+  service = resolved;
+  return resolved;
 }
 
 export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {

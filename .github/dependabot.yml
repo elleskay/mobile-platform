@@ -22,7 +22,15 @@ updates:
     schedule:
       interval: "weekly"
 
+  # The CDK packages are standalone (own package.json + lockfile), not part of
+  # the root workspaces, so they need their own entries. The root "/" entry
+  # above covers the workspaces (apps/_demo, services/_template, packages/spec-test).
   - package-ecosystem: "npm"
-    directory: "/infra/cdk/base"
+    directory: "/infra/cdk/_setup"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/infra/cdk/_template"
     schedule:
       interval: "weekly"
