@@ -1,0 +1,14 @@
+# Default owner for everything
+* @elleskay
+
+# Infra changes need a second pair of eyes
+/infra/ @elleskay
+/.github/workflows/ @elleskay
+
+# Native verification governance (ADR 0001). The OS baseline is the real control
+# (the TTL is only a backstop) and the allow-list decides who may attest, so both
+# need release/security review. Paths cover the template; cloned apps add the
+# same entries for their own apps/<app>/verification/.
+/apps/_template/verification/os-baseline.yml @elleskay
+/apps/_template/verification/allowed-signers @elleskay
+/scripts/verify-attestations.sh @elleskay
