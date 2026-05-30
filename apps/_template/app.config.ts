@@ -22,7 +22,6 @@ const config: ExpoConfig = {
   },
   android: {
     package: "com.elleskay.yourapp",
-    usesCleartextTraffic: false,
     permissions: [
       "android.permission.READ_PHONE_STATE",
       "android.permission.ANSWER_PHONE_CALLS",
@@ -32,6 +31,10 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-secure-store",
+    // Cleartext off (TLS only) on Android. Note: `android.usesCleartextTraffic`
+    // on the Expo config is NOT a real key (Expo ignores it); the manifest
+    // setting must come from expo-build-properties.
+    ["expo-build-properties", { android: { usesCleartextTraffic: false } }],
     // Local config plugins that inject the native extensions at prebuild time.
     // Each is a function exported from ./plugins that mutates the native project.
     "./plugins/withIosCallDirectory",

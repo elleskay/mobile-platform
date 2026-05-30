@@ -102,7 +102,10 @@ Only the cross-cutting platform layer:
 - Nothing secret ships in the mobile bundle. Anything in the app binary is public; keep keys server-side.
 - Input validation via class-validator on every NestJS controller.
 - JWT access tokens are short-lived; refresh server-side.
-- TLS only: iOS App Transport Security on, Android cleartext traffic off.
+- TLS only: iOS App Transport Security on, Android cleartext traffic off via the
+  `expo-build-properties` plugin (`android.usesCleartextTraffic: false`). Note:
+  setting `usesCleartextTraffic` directly on the Expo `android` config is a no-op
+  (Expo ignores it); it must go through the plugin to reach the manifest.
 - Dependabot enabled, weekly cadence.
 - The IAM policy in `infra/iam/cdk-deploy-policy.json` is the least-privilege baseline for the deploy role. Use it instead of `AdministratorAccess`.
 
