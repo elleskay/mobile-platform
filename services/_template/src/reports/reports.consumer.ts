@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import type { SQSEvent, SQSBatchResponse, SQSBatchItemFailure } from "aws-lambda";
 import { AppModule } from "../app.module";

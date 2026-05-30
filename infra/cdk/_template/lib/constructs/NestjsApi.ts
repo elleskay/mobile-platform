@@ -1,7 +1,8 @@
 import * as path from "path";
+import { execSync } from "child_process";
+import * as fs from "fs";
 import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
-import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as apigwv2 from "aws-cdk-lib/aws-apigatewayv2";
@@ -77,8 +78,8 @@ export interface NestjsApiProps {
 export class NestjsApi extends Construct {
   public readonly httpApi: apigwv2.HttpApi;
   public readonly queue: sqs.Queue;
-  public readonly httpFunction: NodejsFunction;
-  public readonly workerFunction: NodejsFunction;
+  public readonly httpFunction: lambda.Function;
+  public readonly workerFunction: lambda.Function;
   public readonly domain?: opensearch.Domain;
 
   constructor(scope: Construct, id: string, props: NestjsApiProps) {
@@ -114,38 +115,37 @@ export class NestjsApi extends Construct {
       });
     }
 
-    const bundling = {
-      // The AWS SDK v3 is on the Lambda runtime already. Nest's core lazily
-      // `require()`s optional transport packages (microservices, websockets)
-      // inside try/catch; they are not installed for a plain HTTP API, so mark
-      // them external to stop esbuild failing on the static require, and let
-      // Nest's optional-package loader no-op them at runtime.
-      externalModules: [
-        "@aws-sdk/*",
-        "@nestjs/microservices",
-        "@nestjs/microservices/*",
-        "@nestjs/websockets",
-        "@nestjs/websockets/*",
-      ],
-      target: "node20",
-      sourceMap: true,
-      // serverless-express + Nest do some dynamic requires; let esbuild keep them.
-      mainFields: ["module", "main"],
-    };
-
-    // The Lambda entry lives in the service package (a sibling under the
-    // monorepo root), not under this CDK package. NodejsFunction otherwise infers
-    // a projectRoot from the entry and rejects it as PathNotUnderRoot. Anchor
-    // both at the monorepo root, where the entry and the root lockfile live.
-    // servicePath is <root>/services/<name>, so the root is two levels up.
-    const repoRoot = props.monorepoRoot ?? path.resolve(props.servicePath, "..", "..");
+    // Build the service for Lambda once, at synth time: `nest build` (tsc, which
+    // emits the decorator metadata NestJS DI needs) plus production node_modules.
+    // We deliberately do NOT esbuild-bundle: esbuild drops emitDecoratorMetadata
+    // and reorders modules, which silently breaks constructor injection in the
+    // bundle (the app boots but every injected service is undefined at runtime).
+    // Shipping the tsc output + node_modules keeps require-order and metadata
+    // correct. The asset is larger but the API actually works.
+    const stage = path.join(props.servicePath, ".lambda-bundle");
+    fs.rmSync(stage, { recursive: true, force: true });
+    fs.mkdirSync(stage, { recursive: true });
+    execSync("npm run build", { cwd: props.servicePath, stdio: "inherit" });
+    fs.cpSync(path.join(props.servicePath, "dist"), stage, { recursive: true });
+    // Write a prod-only package.json (strip devDependencies + scripts). npm
+    // resolves dev deps before --omit=dev prunes them, and a dev dep like
+    // @platform/spec-test ("*") is a workspace package that 404s from the
+    // registry, so it must not be in the manifest we install from.
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(props.servicePath, "package.json"), "utf8"),
+    ) as Record<string, unknown>;
+    delete pkg.devDependencies;
+    delete pkg.scripts;
+    fs.writeFileSync(path.join(stage, "package.json"), JSON.stringify(pkg, null, 2));
+    // Production deps only. The AWS SDK v3 is provided by the Lambda runtime.
+    execSync("npm install --omit=dev --no-package-lock --no-audit --no-fund", {
+      cwd: stage,
+      stdio: "inherit",
+    });
 
     const commonFn = {
       runtime: lambda.Runtime.NODEJS_20_X,
       architecture: lambda.Architecture.ARM_64,
-      projectRoot: repoRoot,
-      depsLockFilePath: path.join(repoRoot, "package-lock.json"),
-      bundling,
       environment: {
         NODE_ENV: "production",
         ...baseEnv,
@@ -154,10 +154,10 @@ export class NestjsApi extends Construct {
       },
     };
 
-    this.httpFunction = new NodejsFunction(this, "HttpFunction", {
+    this.httpFunction = new lambda.Function(this, "HttpFunction", {
       ...commonFn,
-      entry: path.join(props.servicePath, "src", "lambda.ts"),
-      handler: "handler",
+      code: lambda.Code.fromAsset(stage),
+      handler: "lambda.handler",
       memorySize: props.httpMemoryMb ?? 512,
       timeout: cdk.Duration.seconds(29),
       logGroup: new logs.LogGroup(this, "HttpLogs", {
@@ -171,10 +171,10 @@ export class NestjsApi extends Construct {
       );
     }
 
-    this.workerFunction = new NodejsFunction(this, "WorkerFunction", {
+    this.workerFunction = new lambda.Function(this, "WorkerFunction", {
       ...commonFn,
-      entry: path.join(props.servicePath, "src", "reports", "reports.consumer.ts"),
-      handler: "handler",
+      code: lambda.Code.fromAsset(stage),
+      handler: "reports/reports.consumer.handler",
       memorySize: props.workerMemoryMb ?? 1024,
       timeout: cdk.Duration.seconds(60),
       logGroup: new logs.LogGroup(this, "WorkerLogs", {

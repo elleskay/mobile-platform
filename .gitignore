@@ -68,3 +68,7 @@ artifacts/
 # Misc
 .cache/
 .turbo/
+
+# CDK lambda staging
+.lambda-bundle/
+cdk-outputs.json
