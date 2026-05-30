@@ -24,7 +24,8 @@ apps/
 services/
 ├── _template/                       # Full NestJS service (a workspace). Copy to services/<app>.
 │   ├── src/main.ts                  # Local HTTP bootstrap
-│   ├── src/lambda.ts                # Lambda handler (serverless-express)
+│   ├── src/lambda.ts                # HTTP Lambda handler (serverless-express)
+│   ├── src/worker.ts                # SQS worker entry (root re-export of the consumer; see gotcha 11)
 │   ├── src/app.module.ts
 │   ├── src/health/                  # Liveness/readiness
 │   ├── src/reports/                 # Check-and-report domain (controller/service/DTO)
@@ -123,6 +124,7 @@ All documented in `docs/DEPLOY.md` and `docs/MOBILE.md`. Don't undo the fixes:
 8. **CDK env vars are baked at synth time**, not deploy time.
 9. **OTA updates (EAS Update) only ship JS/asset changes.** Anything touching native code (new permissions, new extension) needs a full store build, not an OTA push.
 10. **Refactoring resources into a construct changes logical IDs.** Use logical-id overrides for in-place upgrades.
+11. **Lambda handlers must be a root-level file with no dot in the name.** The nodejs20.x runtime splits the handler string on the *first* dot, so a handler like `reports/reports.consumer.handler` parses to module `reports/reports` (a bare ESM specifier) and init fails with `Cannot find module 'reports'`. The HTTP entry is `lambda.ts` (`lambda.handler`); the SQS worker is `worker.ts` (`worker.handler`), a thin root re-export of `reports/reports.consumer`. Never point a handler at a nested file or a filename containing a dot.
 
 ## When adding a new app to a cloned repo
 
