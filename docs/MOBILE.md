@@ -21,14 +21,27 @@ reference implementations are in `apps/_template/native/`.
 ## How the native code gets in
 
 1. Expo managed workflow. You do not commit `ios/` or `android/`.
-2. `app.config.ts` lists local config plugins (`withIosCallDirectory`,
-   `withIosMessageFilter`, `withAndroidCallScreening`).
-3. `expo prebuild` runs the plugins, which:
-   - add the extension targets,
-   - copy the Swift/Kotlin from `native/` into the generated projects,
-   - add entitlements (App Group, `com.apple.developer.sms-spam-filter`) and
-     manifest entries (`BIND_SCREENING_SERVICE`, intent filters, permissions).
-4. EAS builds the prebuilt project.
+2. `app.config.ts` lists local config plugins in `apps/_template/plugins/`
+   (`withIosCallDirectory`, `withIosMessageFilter`, `withAndroidCallScreening`).
+3. `expo prebuild` runs the plugins:
+   - **Android (proven):** `withAndroidCallScreening` registers
+     `ScamCallScreeningService` in the manifest (`BIND_SCREENING_SERVICE` + intent
+     filter) and copies the Kotlin into the app package (rewriting the package
+     name). This is verified end to end: the service appears in the generated
+     manifest and compiles into the release APK.
+   - **iOS (partial):** `withIosCallDirectory` / `withIosMessageFilter` add the
+     App Group entitlement and stage the Swift under `ios/Extensions/`. They do
+     **not** create the Call Directory / Message Filter App Extension *targets* —
+     that needs `@bacons/apple-targets` (point it at the staged Swift) plus an
+     Apple Developer account for the per-extension App IDs, App Group, the
+     `com.apple.developer.sms-spam-filter` entitlement, and provisioning profiles.
+4. EAS builds the prebuilt project (after you have generated the iOS targets).
+
+The Android block decision reads `<filesDir>/blocklist.json`. The JS app keeps it
+current by fetching the scam-number list and writing that file with
+`expo-file-system` (documentDirectory maps to filesDir); iOS writes the same set
+to the App Group `UserDefaults`. Using a shared file/container means **no custom
+native bridge** is needed for the data path.
 
 Do not hand-edit the generated native projects; prebuild regenerates them.
 
