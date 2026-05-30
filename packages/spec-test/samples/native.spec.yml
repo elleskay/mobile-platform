@@ -1,0 +1,31 @@
+app: native-demo
+version: 1
+requirements:
+  - id: ND-SMS-001
+    title: Known-scam SMS is filtered by the OS
+    category: functional
+    verify: native
+    platforms: [ios, android]
+    severity: critical
+    given: a device with the app installed and SMS filtering enabled
+    when: a known-scam SMS arrives from an unknown sender
+    then: the OS routes it to the Junk folder
+
+  - id: ND-CALL-001
+    title: Blocked number is rejected by the OS
+    category: functional
+    verify: native
+    platforms: [ios]
+    severity: high
+    given: a number on the block list
+    when: it calls the device
+    then: the OS rejects the call without ringing
+
+  - id: ND-LOGIC-001
+    title: Heuristic flags link plus lure as scam
+    category: data
+    verify: unit
+    severity: medium
+    given: the offline classifier
+    when: it scores a message with a link and a lure word
+    then: it returns scam with score >= 0.8

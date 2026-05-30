@@ -1,0 +1,9 @@
+requirement: ND-SMS-001
+platform: ios
+app_version: 1.4.0
+os_tested: 18.3.1
+device: iPhone 13
+date: 2026-05-20
+tester: elleskay
+evidence: https://example.com/evidence/nd-sms-001-ios.mp4
+signature: sha256:e2cea9f52653c945aa65c5e14970569039bda49cea4090bedefb3ec7e44ff3a9

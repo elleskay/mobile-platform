@@ -1,0 +1,9 @@
+requirement: ND-SMS-001
+platform: android
+app_version: 1.4.0
+os_tested: "14"
+device: Pixel 7
+date: 2026-05-20
+tester: elleskay
+evidence: https://example.com/evidence/nd-sms-001-android.mp4
+signature: sha256:fc397c44a9a1357829143462ef42d34805fe118c6a135d2e79dfd17f76099042
