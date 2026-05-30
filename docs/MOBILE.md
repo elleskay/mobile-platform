@@ -45,6 +45,23 @@ native bridge** is needed for the data path.
 
 Do not hand-edit the generated native projects; prebuild regenerates them.
 
+## Local builds (prerequisites)
+
+EAS builds in the cloud, so day-to-day you do not need a local toolchain. But for
+a local Android build (e.g. `cd android && ./gradlew assembleRelease` to install a
+release APK on an emulator for the on-device checks below), the **Android Gradle
+Plugin requires JDK 17+** (Gradle/AGP 8.x). With Java 11 the build fails fast with
+`Android Gradle plugin requires Java 17 to run`. Point `JAVA_HOME` at a 17+ JDK,
+e.g. Android Studio's bundled runtime:
+
+```bash
+# Windows (Android Studio JBR is JDK 21, which AGP accepts)
+JAVA_HOME="C:\Program Files\Android\Android Studio\jbr" ./gradlew.bat assembleRelease
+```
+
+CI does not hit this because the mobile build runs on EAS; if you add a local
+Gradle step to a workflow, pin `actions/setup-java` to temurin 17.
+
 ## EAS setup
 
 ```bash
