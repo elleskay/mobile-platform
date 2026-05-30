@@ -166,6 +166,24 @@ Register the recorder once per Jest project from a setup file:
 - Component: `setupFilesAfterEnv` -> `setupSpecCoverage({ category: "ui" })` from `@platform/spec-test/jest`
 - Maestro: no in-test hook; `spec-maestro --report maestro.xml` ingests the JUnit output after the run.
 
+### Practical gotchas (learned the hard way)
+
+- **Decouple presentation from fetching in component tests.** A component that
+  loads data in a mount `useEffect` and then asserts on it is flaky on
+  memory-constrained CI runners: the async update may not flush within the 5s
+  test timeout, and a recycled jest-expo worker can be killed mid-test. Extract a
+  pure presentational component (e.g. `AlertList({ alerts })`) and unit-test it
+  with seeded data synchronously (no mock, no `waitFor`). Test the data-loading
+  screen separately if needed.
+- **Don't run the animation past unmount.** Store the `Animated` value's
+  `CompositeAnimation` and `.stop()` it in the effect cleanup, or a leaked timer
+  triggers "a worker process failed to exit gracefully" and can destabilize the
+  run.
+- **Maestro: the soft keyboard hides elements.** After `inputText`, the keyboard
+  stays up and can cover a button lower on the screen, giving "Element not found".
+  Add `- hideKeyboard` and/or `- scrollUntilVisible` before `tapOn` for anything
+  below the input.
+
 ## The ESLint rule
 
 `@platform/spec-test` exports `eslintPlugin` with the rule
