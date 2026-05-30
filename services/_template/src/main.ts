@@ -8,6 +8,11 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
+  // CORS parity with the Lambda entry (src/lambda.ts) so a local web client can
+  // call the dev API. Reflects the request origin unless CORS_ORIGIN is set.
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : true,
+  });
   app.enableShutdownHooks();
   const port = process.env.PORT ?? 3000;
   await app.listen(port);

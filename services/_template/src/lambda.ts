@@ -22,6 +22,11 @@ async function bootstrapServer(): Promise<Handler> {
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
+  // CORS for browser clients (the web preview, an admin surface). Reflects the
+  // request origin unless CORS_ORIGIN is set (comma-separated allowlist).
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : true,
+  });
   await app.init();
   return serverlessExpress({ app: expressApp });
 }
