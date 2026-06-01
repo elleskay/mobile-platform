@@ -1,0 +1,10 @@
+# EXAMPLE placeholder, intentionally unsigned. Manual req (no platform): inspect
+# the release bundle for secrets, then stamp + sign-commit. See EX-SMS-001.ios.yml.
+requirement: EX-SEC-001
+app_version: 0.1.0
+os_tested: "n/a"
+device: ci-bundle-inspection
+date: 2026-05-20
+tester: replace-me
+evidence: https://example.com/evidence/ex-sec-001-bundle-scan.txt
+# signature: <run spec-attest to stamp>

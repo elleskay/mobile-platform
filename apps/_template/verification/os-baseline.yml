@@ -1,0 +1,6 @@
+# Current OS versions this app claims to handle. The gate marks a native
+# artifact stale if its os_tested is behind these, catching an OS point release
+# that changes CallKit / Call Directory / SMS-filter behavior with no app bump.
+# Keep current.
+ios: "18.3.1"
+android: "14"

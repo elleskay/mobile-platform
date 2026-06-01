@@ -1,0 +1,13 @@
+# EXAMPLE placeholder, intentionally unsigned. After a real iOS device run,
+# fill these in, stamp with `spec-attest --artifact <this file>`, and commit with
+# a signed commit by an allowlisted signer. Until then the gate reports it
+# unverified and the attestation check skips (no signed artifacts present).
+requirement: EX-SMS-001
+platform: ios
+app_version: 0.1.0
+os_tested: "18.3.1"
+device: iPhone 13
+date: 2026-05-20
+tester: replace-me
+evidence: https://example.com/evidence/ex-sms-001-ios.mp4
+# signature: <run spec-attest to stamp>
