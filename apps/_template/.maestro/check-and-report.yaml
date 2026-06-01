@@ -7,6 +7,13 @@ name: "[EX-CHECK-001] check a suspicious message shows a verdict"
 ---
 - launchApp:
     clearState: true
+# Wait for the Check screen to mount before tapping. A cold release-APK launch
+# in CI can outlast tapOn's default retry window, which surfaces as a flaky
+# "Element not found" on the first interaction.
+- extendedWaitUntil:
+    visible:
+      id: "message-input"
+    timeout: 30000
 - tapOn:
     id: "message-input"
 - inputText: "URGENT verify your bank http://evil.example"

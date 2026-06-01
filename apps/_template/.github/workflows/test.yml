@@ -7,7 +7,19 @@ name: test
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+
+# A second push to an open PR cancels the in-flight run instead of spinning up a
+# parallel emulator job alongside the stale one.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   unit-component:
@@ -18,7 +30,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm run -w @platform/spec-test build
       - run: npm run lint
       - name: Jest (unit + component) on jest-expo
@@ -55,7 +67,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm run -w @platform/spec-test build
       - name: Install Maestro
         run: |
@@ -63,22 +75,86 @@ jobs:
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Prebuild Android project
         run: npx expo prebuild --platform android --no-install
-      - name: Build debug APK
-        run: cd android && ./gradlew assembleDebug
+      - name: Set up Gradle (dependency + build cache)
+        # Restores ~/.gradle (deps + wrapper) and Gradle's build cache; the
+        # release-APK build below is the largest cold chunk of this job. The cache
+        # is written on main and read on PR branches (the action's default).
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: android
+      - name: Permit cleartext to the local API (e2e build only)
+        # The e2e talks to a local http://10.0.2.2:3000 API; Android blocks
+        # cleartext by default. Patch the generated manifest directly (this is a
+        # test-only build). Production keeps cleartext off via expo-build-properties.
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          sed -i 's/<application /<application android:usesCleartextTraffic="true" /' "$MANIFEST"
+          grep -q 'usesCleartextTraffic="true"' "$MANIFEST" || { echo "failed to set cleartext in manifest"; exit 1; }
+      - name: Build release APK (JS bundled)
+        # Build a RELEASE APK, not debug. A debug build loads its JS bundle from a
+        # Metro dev server, which does not run in CI, so a debug app comes up to a
+        # red error screen and Maestro finds no UI. The release APK embeds the JS
+        # bundle. Expo prebuild defaults the release signingConfig to the debug
+        # keystore, so it still installs on the emulator. EXPO_PUBLIC_API_URL is
+        # inlined here: 10.0.2.2 is the emulator alias for the host loopback where
+        # the API runs.
+        working-directory: android
+        env:
+          EXPO_PUBLIC_API_URL: http://10.0.2.2:3000
+        run: ./gradlew assembleRelease --build-cache
+      - name: Build API (for the report journey)
+        # Point this at your API workspace (services/api by convention).
+        run: npm run build -w @service/api
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          # Not a secret: this is the actions/cache key. gitleaks' generic-api-key
+          # rule trips on "key:" plus the string's entropy, so allow this line.
+          key: avd-api34-x86_64-pixel6-v1 # gitleaks:allow
+      - name: Create AVD snapshot (only on cache miss)
+        # Cold-boots the emulator once and saves a snapshot the cache keeps. On a
+        # cache hit this step is skipped and the run below boots from the snapshot.
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "AVD snapshot generated."
       - name: Run Maestro flows on the emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
           arch: x86_64
           profile: pixel_6
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
           script: |
-            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            # Start the real API on the host:3000; the app reaches it at
+            # http://10.0.2.2:3000 so the report journey (UI -> API -> receipt) runs
+            # end to end. Adjust the path to your API workspace. Redirect its output
+            # and kill it at the end: a backgrounded process holding the step's
+            # stdout pipe makes the step hang after the flows pass.
+            node services/api/dist/main.js > /tmp/api.log 2>&1 &
+            API_PID=$!
+            for i in $(seq 1 30); do curl -sf http://localhost:3000/health && break; sleep 1; done
+            adb install -r android/app/build/outputs/apk/release/app-release.apk
             maestro test .maestro --format junit --output maestro.xml
             npx spec-maestro --report maestro.xml
+            echo "--- API log ---"; cat /tmp/api.log || true
+            kill "$API_PID" 2>/dev/null || true
 
   # iOS journey e2e: intentionally not run (see ADR 0001). Enable on a nightly
   # macOS schedule only if iOS-specific journey bugs actually appear.
