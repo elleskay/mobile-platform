@@ -6,6 +6,13 @@ name: "[EX-REPORT-001] submit a report and receive a confirmation"
 ---
 - launchApp:
     clearState: true
+# Wait for the Check screen to mount before tapping. A cold release-APK launch
+# in CI can outlast tapOn's default retry window, which surfaces as a flaky
+# "Element not found" on the first interaction.
+- extendedWaitUntil:
+    visible:
+      id: "message-input"
+    timeout: 30000
 - tapOn:
     id: "message-input"
 - inputText: "prize claim click http://evil.example"
