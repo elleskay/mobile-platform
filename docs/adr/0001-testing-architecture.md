@@ -61,7 +61,7 @@ instead of a guess.
 
 ```
    MANUAL / NATIVE   real-device call/SMS block, store-review behavior   -> signed artifact, not a test
-   E2E               Detox (app journeys) | supertest (API)              -> few, journey-level
+   E2E               Maestro (app journeys) | supertest (API)              -> few, journey-level
    CONTRACT          shared zod schemas in packages/contracts            -> the app<->API seam (shapes)
    INTEGRATION       Nest TestingModule + real Postgres + real SQS       -> API wiring
    COMPONENT         jest-expo + React Native Testing Library            -> app UI behavior

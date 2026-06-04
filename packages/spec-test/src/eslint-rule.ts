@@ -87,7 +87,7 @@ export const requireExpectInSpecTest: Rule.RuleModule = {
     type: "problem",
     docs: {
       description:
-        "Require at least one expect() call inside every test whose title is prefixed with a spec ID like [ARM-XXX-001]",
+        "Require at least one expect() call inside every test whose title is prefixed with a spec ID like [SCAM-SMS-001]",
     },
     schema: [],
     messages: {

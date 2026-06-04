@@ -10,11 +10,11 @@ const env = {
 };
 
 // Required: tell the stack which GitHub repo to trust.
-// Pass via context: cdk deploy -c repo=elleskay/armoury
+// Pass via context: cdk deploy -c repo=elleskay/scamshield
 const repo = app.node.tryGetContext("repo") as string | undefined;
 if (!repo) {
   throw new Error(
-    "Missing required context 'repo'. Pass it via -c repo=<owner>/<name>, e.g. -c repo=elleskay/armoury",
+    "Missing required context 'repo'. Pass it via -c repo=<owner>/<name>, e.g. -c repo=elleskay/scamshield",
   );
 }
 

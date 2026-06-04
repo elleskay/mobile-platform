@@ -6,7 +6,7 @@ const SPEC_ID_RE = /^\[([A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)+-\d{3,})\]/;
 /**
  * Extended Playwright `test` that auto-records spec coverage.
  *
- * Title convention: "[ARM-XXX-001] human description". The leading
+ * Title convention: "[SCAM-SMS-001] human description". The leading
  * [ID] is parsed; if present, the test's outcome is appended to
  * .spec-coverage/results.jsonl in a post-test hook.
  *
