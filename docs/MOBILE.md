@@ -100,7 +100,7 @@ manages.
 
 ## Testing on device
 
-The spec gate runs Detox on a simulator/emulator, which does not exercise the
+The spec gate runs Maestro on an emulator, which does not exercise the
 real call/SMS interception. Before any release, verify on a physical device that
 the extensions are enabled (iOS Settings > Phone / Messages, Android default-apps)
 and actually intercept. This is the journey check the gate cannot do (see

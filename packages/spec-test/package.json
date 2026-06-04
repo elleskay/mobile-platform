@@ -27,11 +27,6 @@
       "import": "./dist/jest.js",
       "require": "./dist/cjs/jest.js"
     },
-    "./detox": {
-      "types": "./dist/detox.d.ts",
-      "import": "./dist/detox.js",
-      "require": "./dist/cjs/detox.js"
-    },
     "./maestro": {
       "types": "./dist/maestro.d.ts",
       "import": "./dist/maestro.js",

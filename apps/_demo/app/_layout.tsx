@@ -5,7 +5,7 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="auto" />
-      <Stack screenOptions={{ headerTitle: "ScamShield Demo" }}>
+      <Stack screenOptions={{ headerTitle: "mobile-platform demo" }}>
         <Stack.Screen name="index" options={{ title: "Check & Report" }} />
       </Stack>
     </>

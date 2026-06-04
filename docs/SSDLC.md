@@ -19,14 +19,13 @@ What this template gives you out of the box, and what each app is expected to ma
 
 | Control | How |
 |---|---|
-| Security headers | Helmet middleware (Express/NestJS) or `next.config.ts` `headers()` |
-| Input validation | Zod schemas at every API boundary |
-| Auth | Auth.js / Passport.js / Clerk — never roll your own |
-| Authorization | Per-route guards, principle of least privilege |
-| Rate limiting | Upstash Redis or AWS WAF on auth and payment routes |
-| CSRF protection | Framework default (Next.js Server Actions, NestJS CSRF middleware) |
-| HTTPS only | Enforced via AWS ALB / CloudFront |
-| Secrets in prod | AWS Secrets Manager, never env files |
+| API hardening | Helmet on the NestJS API; the client is native, so there is no web header surface |
+| Input validation | class-validator on every controller DTO; Zod where a schema is shared with the app |
+| Auth | JWT access tokens issued by the API; store on device in expo-secure-store, never AsyncStorage |
+| Authorization | NestJS guards per route, principle of least privilege |
+| Rate limiting | NestJS throttler (or AWS WAF on API Gateway) on auth and report routes |
+| Transport | TLS only: iOS ATS on, Android cleartext off via the `expo-build-properties` plugin |
+| Secrets in prod | GitHub Actions secrets, Lambda env, and EAS secrets. Nothing secret ships in the app bundle |
 | Error tracking | Sentry (catches unhandled exceptions that may leak info) |
 | Logging | Structured JSON logs, no PII, no secrets |
 | Database access | Parameterized queries only (ORM enforces this) |

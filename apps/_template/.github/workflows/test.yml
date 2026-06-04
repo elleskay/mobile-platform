@@ -156,10 +156,6 @@ jobs:
             echo "--- API log ---"; cat /tmp/api.log || true
             kill "$API_PID" 2>/dev/null || true
 
-  # iOS journey e2e: intentionally not run (see ADR 0001). Enable on a nightly
-  # macOS schedule only if iOS-specific journey bugs actually appear.
-  e2e-maestro-ios:
-    runs-on: ubuntu-latest
-    if: false
-    steps:
-      - run: echo "iOS journey e2e is intentionally stubbed; critical iOS behavior is in the native-artifact layer."
+  # iOS journey e2e is intentionally not run (see ADR 0001); critical iOS
+  # behavior is proven in the native-artifact layer. Add a nightly macOS
+  # Maestro job here only if iOS-specific journey bugs actually appear.

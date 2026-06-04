@@ -16,7 +16,7 @@ tests can see.
 ```
 specs/<app>.yml                  -> declares requirements with IDs
 tests/unit/*.spec.ts             -> Vitest tests for pure logic (data)
-tests/e2e/*.e2e.ts               -> Detox tests for UI / flows on device
+tests/e2e/*.e2e.ts               -> Maestro flows for UI on device or emulator
 services/api/.../*.spec.ts       -> Vitest tests for API logic
 @platform/spec-test (runner)     -> records per-test pass/fail to JSONL
 spec-coverage CLI                -> diffs spec IDs vs covered IDs, exits 1 if any uncovered
@@ -219,7 +219,7 @@ passing test is in the wrong layer. The build is not done until it exits 0.
 ## CI workflow
 
 Copy `apps/_template/.github/workflows/test.yml` into the app. Data + coverage
-run on every push (Ubuntu, with a Postgres service for API tests). The Detox e2e
+run on every push (Ubuntu, with a Postgres service for API tests). The Maestro e2e
 job runs on macOS with a simulator and is gated to PRs to control cost. The
 deploy workflow should depend on the gate so a red spec blocks deploy.
 
