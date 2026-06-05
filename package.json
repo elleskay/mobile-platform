@@ -9,6 +9,7 @@
     "packages/*"
   ],
   "scripts": {
+    "setup": "bash scripts/connect.sh",
     "typecheck": "echo 'Platform template has no app source. Apps add their own typecheck script.'",
     "lint": "echo 'Platform template has no app source. Apps add their own lint script.'",
     "format": "prettier --write .",
