@@ -1,0 +1,20 @@
+# Native projects are generated on demand by `expo prebuild` / EAS (Expo CNG) —
+# the config lives in app.json/app.config.ts + config plugins, so the generated
+# android/ and ios/ dirs are build artifacts and must NOT be committed. Without
+# this, `expo run:android|ios` leaves the whole native project tracked.
+/android
+/ios
+
+# Expo / Metro
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native build leftovers (kept in case a native dir is generated in place)
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
