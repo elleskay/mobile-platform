@@ -30,26 +30,53 @@ git mv infra/cdk/_template infra/cdk/my-app
 # Edit infra/cdk/my-app/bin/app.ts: rename the stack id (e.g. MyAppApi)
 ```
 
-## 4. Provision the deploy role (one time per AWS account + repo)
+## 4. Connect GitHub and AWS (one command)
+
+Run the connect script once per repo. It (or your AI coding agent) ensures the
+OIDC provider, deploys the `_setup` deploy role, provisions a database (Neon),
+generates `JWT_SECRET`, and sets every GitHub Actions secret and variable the
+API deploy workflow needs.
+
+```bash
+npm run setup
+# preview without changing anything: scripts/connect.sh --dry-run
+```
+
+Prerequisites: `gh` (authenticated), `aws` (credentials allowed to create an
+IAM role + OIDC provider and to bootstrap CDK), Node 20+. Optional: `neonctl`
+to auto-provision the database. The AWS/GitHub half is fully automated.
+
+It sets the **secrets** `AWS_DEPLOY_ROLE_ARN`, `DATABASE_URL`, `JWT_SECRET`
+(and `EXPO_TOKEN`, `CLASSIFIER_API_KEY` if you pass them) and the **variables**
+`AWS_REGION`, `JWT_ISSUER`, `ENABLE_OPENSEARCH` (plus `CDK_DIR`/`API_DIR`/
+`CLASSIFIER_API_URL` if non-default).
+
+## 5. Link EAS (one-time, interactive)
+
+EAS login and store credentials are interactive by design, so finish the mobile
+side by hand (the script prints these steps too):
+
+```bash
+npm i -g eas-cli && eas login
+cd apps/app && eas init        # links the project
+eas credentials                # iOS/Android signing, when you build
+```
+
+`eas.json` (build + submit profiles) already ships in `apps/_template`. To run
+EAS builds from CI, set an `EXPO_TOKEN` secret (the connect script can do this
+if you pass `--expo-token`). Full mobile setup: `docs/MOBILE.md`.
+
+<details>
+<summary>Prefer to do the AWS/GitHub side by hand?</summary>
 
 ```bash
 cd infra/cdk/_setup
 npm install
-npx cdk deploy -c repo=<owner>/my-app
-# Copy the DeployRoleArn output.
+npx cdk deploy -c repo=<owner>/my-app   # copy the DeployRoleArn output
 ```
 
-## 5. Configure GitHub
-
-Secrets:
-- `AWS_DEPLOY_ROLE_ARN` (from step 4)
-- `DATABASE_URL`, `JWT_SECRET`, `CLASSIFIER_API_KEY` (as needed)
-- `EXPO_TOKEN` (for the mobile build workflow)
-
-Variables:
-- `AWS_REGION` (e.g. `ap-southeast-1`)
-- `API_DIR` = `services/api`, `APP_DIR` = `apps/app`, `CDK_DIR` = `infra/cdk/my-app`
-- `JWT_ISSUER`, `CLASSIFIER_API_URL`, `ENABLE_OPENSEARCH` (optional)
+Then set the secrets/variables above manually (`gh secret set` / `gh variable set`).
+</details>
 
 ## 6. Push
 
