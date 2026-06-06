@@ -1,10 +1,8 @@
 <div align="center">
 
-# Ship production-grade apps, fast.
+<img src="docs/banner.png" alt="mobile-platform: ship production-grade Expo and NestJS apps to AWS, fast" width="100%">
 
-### the mobile template &middot; Expo (React Native) + NestJS on AWS
-
-**Open-source Expo and NestJS on AWS template your AI coding agent can deploy to.** Point it at this repo, describe an idea, and it ships a real, live app, with no infrastructure to build.
+**Point your AI coding agent at this repo, describe an idea, and it ships a real, live app to AWS, with no infrastructure to build.**
 
 `Works with` &nbsp; **Claude Code** &nbsp;·&nbsp; **Codex** &nbsp;·&nbsp; **Cursor** &nbsp;·&nbsp; **Windsurf** &nbsp;·&nbsp; **Cline**
 
