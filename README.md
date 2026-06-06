@@ -1,57 +1,44 @@
+<div align="center">
+
 # mobile-platform
 
-A TypeScript platform template for shipping React Native (Expo) apps backed by a NestJS API on AWS serverless. You clone it, drop in your app and your service, and you inherit CI, infrastructure-as-code, security scanning, a verified deploy pipeline, native call/SMS module references, and a spec-driven test gate that refuses to ship an app whose requirements are not proven. A working demo app and demo API live inside and are built by the same workflows, so the patterns are tested on every push, not just documented.
+[![CI](https://github.com/elleskay/mobile-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/elleskay/mobile-platform/actions/workflows/ci.yml) &nbsp;[![Security](https://github.com/elleskay/mobile-platform/actions/workflows/security.yml/badge.svg)](https://github.com/elleskay/mobile-platform/actions/workflows/security.yml) &nbsp;![IaC](https://img.shields.io/badge/IaC-AWS%20CDK-4F46E5) &nbsp;![deploys](https://img.shields.io/badge/deploys-OIDC%2C%20no%20stored%20keys-06B6D4) &nbsp;[![license](https://img.shields.io/badge/license-MIT-64748B)](LICENSE)
 
-Repo: [elleskay/mobile-platform](https://github.com/elleskay/mobile-platform). License: MIT.
+**Open-source template for shipping production-grade React Native (Expo) apps backed by a NestJS API on AWS serverless, fast, with an AI coding agent or by hand.**
 
-This is the mobile sibling of a web `platform` template. Mobile and NestJS belong here; web-only concerns live in the other one. It is modeled on the real ScamShield stack (a citizen-facing iOS/Android app with call blocking, SMS filtering, check-and-report, push, SQS report intake, and OpenSearch clustering), and ScamShield-style apps are built on it. It is designed to be cloned per app, not vendored as a dependency: each app pins its own copy of the constructs and the test runner, so a breaking change never propagates without an explicit action.
+Clone it, drop in your app and your service, and inherit CI/CD, infrastructure as code, security scanning, native call/SMS module references, OIDC deploys with zero stored credentials, and a spec-driven test gate that refuses to ship an app whose requirements are not proven.
 
-## Demo: the platform tests itself
+### [See the full story: elleskay.github.io/platform-site](https://elleskay.github.io/platform-site/)
 
-There is no hosted UI to show; the proof is in the pipeline. CI builds the demo Expo app, builds the demo NestJS service, synthesizes the CDK construct against that service, and runs the spec gate against itself on every push. A deployed API can then be smoke-tested end to end.
+</div>
 
-CDK synth proving the `NestjsApi` construct bundles the demo service:
+## The two-template family
 
-```text
-$ cd infra/cdk/_template && npx cdk synth
-> nest build
-Bundling NestJS service for Lambda (tsc output + production node_modules)...
-Successfully synthesized to cdk.out
-Stacks: DemoApiStack
-  AWS::ApiGatewayV2::Api        HttpApi
-  AWS::Lambda::Function         HttpFunction   (lambda.handler,  arm64, 512 MB)
-  AWS::Lambda::Function         WorkerFunction (worker.handler,  arm64, 1024 MB)
-  AWS::SQS::Queue               ReportsQueue + ReportsDlq
+This is the mobile sibling of the web [**platform**](https://github.com/elleskay/platform) template. Mobile and NestJS belong here; web-only concerns live in the other one. The [landing site](https://elleskay.github.io/platform-site/) showcases both, with live web demos (CoverLens, Cancer Navigator, Armoury) you can open right now.
+
+This template is modeled on the real ScamShield stack: a citizen-facing iOS/Android app with call blocking, SMS filtering, check-and-report, push, SQS report intake, and OpenSearch clustering. There is no hosted UI to click (it is a mobile app), so the proof is in the pipeline: CI builds the demo Expo app, builds the demo NestJS service, synthesises the CDK construct against it, and runs the spec gate on every push.
+
+## Built to pair with an AI coding agent
+
+Point Claude Code, Codex, Cursor, Windsurf, or Cline at this repo and describe an app: it scaffolds the app, the service, and the infra from the templates, builds, and ships. The agent conventions live in [CLAUDE.md](CLAUDE.md), including a mandatory spec-first build protocol.
+
+One command wires the API's cloud connection so every push deploys with no stored keys:
+
+```bash
+npm run setup          # scripts/connect.sh
+npm run setup -- --dry-run   # preview without changing anything
 ```
 
-Post-deploy smoke test (`scripts/verify-deploy.sh`), which proves routing, DI, validation, and the queue path are actually live:
-
-```text
-$ ./scripts/verify-deploy.sh https://abc123.execute-api.ap-southeast-1.amazonaws.com
-==> Health endpoint
-  PASS  Health endpoint
-==> POST /reports/check classifies
-  PASS  POST /reports/check classifies
-==> Validation rejects empty body (400)
-  PASS  Validation rejects empty body (400)
-==> Unknown fields rejected (400)
-  PASS  Unknown fields rejected (400)
-==> POST /reports returns a reportId
-  PASS  POST /reports returns a reportId
-==> No secret material leaked
-  PASS  No secret material leaked
-
-Summary: 6 passed, 0 failed
-```
+It ensures the GitHub OIDC provider, deploys a least-privilege deploy role, provisions a database, generates `JWT_SECRET`, and sets every GitHub Actions secret and variable. The agent guides you through the interactive steps (database choice, and EAS login for the app), the AWS/GitHub half is automated.
 
 ## What it does
 
-- Ships a per-app clone target, not a dependency: an Expo app overlay, a NestJS service scaffold, a CDK package, and a one-time AWS setup stack, all copied and renamed per app.
+- Ships a per-app clone target, not a dependency: an Expo app overlay, a NestJS service scaffold, a CDK package, and a one-time AWS setup stack, all copied and renamed per app. Each app pins its own copy, so a breaking change never propagates without explicit action.
 - Surfaces native call blocking and SMS filtering through Expo config plugins: iOS Call Directory and Message Filter extensions (Swift), Android CallScreeningService and SMS role (Kotlin). The JS layer manages data; the OS does the interception.
-- Provides a reusable `NestjsApi` CDK construct: HTTP Lambda behind API Gateway, an SQS report-intake queue with a dead-letter queue, an idempotent worker Lambda, and an optional OpenSearch domain for clustering similar reports.
-- Runs four GitHub Actions workflows out of the box: CI (typecheck, lint, expo-doctor, nest build, cdk synth, spec gate), security (CodeQL, gitleaks, npm audit), mobile build (EAS build, submit, and OTA update), and API deploy (OIDC, CDK deploy, smoke test).
-- Enforces a spec-driven test gate: every requirement in a YAML spec must be covered by a passing, asserting test or a fresh signed real-device artifact, or the build fails.
-- Ships least-privilege IAM (a pre-canned deploy policy and an OIDC role) so the deploy role is never `AdministratorAccess`.
+- Provides a reusable `NestjsApi` CDK construct: HTTP Lambda behind API Gateway, an SQS report-intake queue with a dead-letter queue, an idempotent worker Lambda, and an optional OpenSearch domain.
+- Runs four GitHub Actions workflows: CI (typecheck, lint, expo-doctor, nest build, cdk synth, spec gate), security (CodeQL, gitleaks, npm audit), mobile build (EAS build, submit, OTA update), and API deploy (OIDC, CDK deploy, smoke test).
+- Enforces a spec-driven test gate: every requirement is covered by a passing, asserting test or a fresh signed real-device artifact, or the build fails.
+- Ships least-privilege IAM (a deploy policy and an OIDC role) so the deploy role is never `AdministratorAccess`.
 - Dogfoods all of the above through `apps/_demo/` and `services/_template/`, built by the same workflows an app inherits.
 
 ## Logical architecture
@@ -106,112 +93,15 @@ flowchart TD
   wkr --> os
 ```
 
-## Clone to a shipped app and API
-
-```mermaid
-flowchart TD
-  a["Clone the template (gh repo create --template)"]
-  b["Copy apps/_demo to apps/app, overlay native refs from apps/_template"]
-  c["Copy services/_template to services/api"]
-  d["Rename infra/cdk/_template to infra/cdk/your-app"]
-  e["Run infra/cdk/_setup: provision GitHub OIDC role, copy the role ARN"]
-  f["Set GitHub secrets and variables (AWS role, DB, JWT, EAS token)"]
-  g["Write specs/app.yml, then tests plus code until the gate is green"]
-  h["Push: deploy-api ships the API, mobile-build ships the app"]
-
-  a --> b
-  b --> c
-  c --> d
-  d --> e
-  e --> f
-  f --> g
-  g --> h
-```
-
-## Deployment pipelines
-
-Two independent pipelines: the API deploys from `main`, the app builds on demand through EAS.
-
-```mermaid
-flowchart LR
-  push["Push to main"]
-  oidc["Assume AWS role via OIDC"]
-  migrate["Apply DB migrations (if db/migrate.ts)"]
-  build["nest build"]
-  cdk["cdk deploy --all"]
-  smoke["verify-deploy.sh smoke test"]
-
-  push --> oidc
-  oidc --> migrate
-  migrate --> build
-  build --> cdk
-  cdk --> smoke
-```
-
-```mermaid
-flowchart LR
-  dispatch["workflow_dispatch (profile + action)"]
-  eas["Setup EAS (EXPO_TOKEN)"]
-  choice{"build or update?"}
-  binary["EAS build (store binary), optional --auto-submit"]
-  ota["EAS update (OTA, JS/asset only)"]
-
-  dispatch --> eas
-  eas --> choice
-  choice -->|build| binary
-  choice -->|update| ota
-```
-
-OTA updates ship JS and asset changes only. Anything touching native code (a new permission, a new extension) needs a full store build, not an OTA push.
-
 ## Spec-driven development
 
-Every app on this platform is built from a spec and tested against it. The first artifact for any app is `specs/<app>.yml`: each requirement gets a unique ID, a category, a severity, a `verify` level, and a given/when/then. Tests then name themselves with the requirement ID in brackets; a per-runner recorder parses the `[ID]` and records pass or fail. The runner is `@platform/spec-test`, dual-published as ESM and CJS so Vitest (API), jest-expo (app unit and component), Maestro (app e2e), and Node CLIs all consume it.
+Every app on this platform is built from a spec and tested against it. The first artifact for any app is `specs/<app>.yml`: each requirement gets a unique ID, a category, a severity, a `verify` level, and a given/when/then. Tests name themselves with the requirement ID in brackets; a per-runner recorder parses the `[ID]` and records pass or fail. The runner is `@platform/spec-test`, dual-published as ESM and CJS so Vitest (API), jest-expo (app unit and component), Maestro (app e2e), and Node CLIs all consume it.
 
-A sample requirement from the app overlay spec (`apps/_template/specs/example.yml`):
+The gate (`spec-coverage`) parses the spec, reads the coverage record, evaluates any native/manual signed artifacts, and exits non-zero on any gap. It catches a missing test, a covering test that fails, a `[ID]` test with zero `expect()` calls (an ESLint rule fails before tests run), a requirement proven in the wrong layer, and a `native`/`manual` requirement whose signed artifact is missing, unsigned, tampered, or stale.
 
-```yaml
-- id: EX-CHECK-001
-  title: User can check a suspicious message and see a verdict
-  category: functional
-  verify: e2e
-  platforms: [ios, android]
-  severity: high
-  given: the user is on the Check screen
-  when: they paste a message containing a link and a lure word, then tap Check
-  then: a SCAM or SUSPICIOUS verdict is shown with a reason
-  tags: [check-and-report]
-```
+OS-level behavior (call blocking, SMS filtering) cannot have a JS test, because the interception runs out of process. Those `verify: native | manual` requirements are proven instead by signed real-device artifacts under `verification/`, with two layers: an in-file `sha256` stamped by `spec-attest` (tampering is caught), and the GPG/SSH signature on the commit that last touched the artifact (accountability, enforced by `scripts/verify-attestations.sh`). Artifacts go stale on app-version bumps, OS baseline drift, or a 90-day TTL, forcing real-device re-verification.
 
-The gate (`spec-coverage`) parses the spec, reads the coverage record, evaluates any native/manual signed artifacts, writes a markdown report, and exits non-zero on any gap. Green looks like this:
-
-```text
-# Spec coverage: example v1
-
-**100% covered** (3/3 requirements passed at least one test)
-
-All requirements covered by passing tests.
-```
-
-Red, when a requirement has no passing test:
-
-```text
-# Spec coverage: example v1
-
-**66.7% covered** (2/3 requirements passed at least one test)
-
-## Uncovered (1)
-
-| ID         | Title                                          | Category | Severity |
-|------------|------------------------------------------------|----------|----------|
-| EX-UI-001  | Dropdown renders combobox with provided options | ui       | high     |
-```
-
-What the gate catches: a missing test (uncovered, exit 1), a covering test that fails (exit 1), a `[ID]` test with zero `expect()` calls (an ESLint rule fails before tests even run), a requirement proven in the wrong layer (category mismatch, exit 1), and a `native`/`manual` requirement whose signed artifact is missing, unsigned, tampered, or stale (exit 1).
-
-OS-level behavior (call blocking, SMS filtering) cannot have a JS test because the interception runs out of process. Those `verify: native | manual` requirements are proven instead by signed real-device artifacts under `verification/`, with two layers of protection: an in-file `sha256` checksum stamped by `spec-attest` (integrity: editing the body after stamping is caught as tampered), and the GPG/SSH signature on the commit that last touched the artifact, by a signer in `allowed-signers` (accountability, enforced by `scripts/verify-attestations.sh`). The moment any artifact carries a signature, an empty `allowed-signers` becomes a hard error, so accountability cannot be left off by forgetting. Artifacts go stale when the app version moves, when the tested OS falls behind `os-baseline.yml`, or after a 90-day TTL, forcing real-device re-verification.
-
-What the gate does not catch, stated honestly: a wrong spec (the test agrees with a wrong requirement), behavior nobody wrote a spec entry for, and decomposed-journey gaps (a feature split across IDs can hit 100% coverage while one link in the user chain is broken). The mitigation for the last is at least one journey-level Maestro e2e per user-facing feature, plus the native artifact layer. See `docs/TESTING.md` and `docs/adr/0001-testing-architecture.md`.
+What the gate does not catch, stated honestly: a wrong spec, behavior nobody wrote a spec entry for, and decomposed-journey gaps. The mitigation for the last is at least one journey-level Maestro e2e per user-facing feature, plus the native artifact layer. See `docs/TESTING.md` and `docs/adr/0001-testing-architecture.md`.
 
 ## Tech stack
 
@@ -233,26 +123,30 @@ What the gate does not catch, stated honestly: a wrong spec (the test agrees wit
 | Test runner | `@platform/spec-test` (Vitest, jest-expo, Maestro, signed artifacts) |
 | Tooling | ESLint 9, Prettier, Commitlint (Conventional Commits), Node 20+ |
 
+## Quickstart: clone to shipped
+
+```bash
+gh repo create my-app --template elleskay/mobile-platform --clone --private
+cd my-app && npm install
+cp -r apps/_demo apps/app           # overlay native refs from apps/_template
+cp -r services/_template services/api
+git mv infra/cdk/_template infra/cdk/my-app   # edit bin/app.ts stack id
+npm run setup                        # wires GitHub + AWS for the API
+# write specs/app.yml, then tests + code until the gate is green, then push
+```
+
+Full step by step: `docs/SETUP.md` (connection), `docs/MOBILE.md` (EAS, native), `docs/DEPLOY.md` (deploy + gotchas).
+
 ## Local development
 
-This is a npm workspaces monorepo (`apps/*`, `services/*`, `packages/*`).
+This is an npm workspaces monorepo (`apps/*`, `services/*`, `packages/*`).
 
 ```bash
 npm ci                      # install the whole workspace
 
-# Demo app
-cd apps/_demo
-npm run typecheck
-npm start                   # expo start
-
-# Demo API
-cd services/_template
-npm run build               # nest build
-npm run start:dev           # local HTTP on :3000
-
-# Spec-test runner
-cd packages/spec-test
-npm run build               # dual ESM + CJS
+cd apps/_demo && npm start          # expo start (demo app)
+cd services/_template && npm run start:dev   # local NestJS HTTP on :3000
+cd packages/spec-test && npm run build       # dual ESM + CJS runner
 ```
 
 Native call/SMS features require `expo prebuild` and a full native build; the references in `apps/_template/native/` are copied in via config plugins, not committed as generated `ios/`/`android/` dirs. See `docs/MOBILE.md`.
@@ -261,56 +155,31 @@ Native call/SMS features require `expo prebuild` and a full native build; the re
 
 - Unit and component (app): jest-expo, recorded through `@platform/spec-test/jest`.
 - API: Vitest, recorded through `@platform/spec-test/vitest`.
-- End-to-end (app): Maestro flows, ingested into coverage by `spec-maestro`.
+- End-to-end (app): Maestro flows, ingested by `spec-maestro`.
 - Native/manual: signed real-device artifacts under `verification/`, verified by `spec-attest` and `scripts/verify-attestations.sh`.
 - The gate (`spec-coverage`) ties them together and is what `npm run test:spec` runs in a cloned app. CI runs the gate against the runner's own samples to prove the pass and fail paths both behave.
 
-Android e2e in CI builds a release APK (not debug), because a debug build loads its JS bundle from a Metro dev server that does not run on a CI emulator. See `docs/TESTING.md` and `docs/adr/0001-testing-architecture.md`.
-
-## Deployment
-
-API: push to `main`. The deploy workflow assumes an AWS role over GitHub OIDC (no stored credentials), applies DB migrations if present, builds the service, runs `cdk deploy`, and smoke-tests the live URL. Configure the role once with the setup stack:
-
-```bash
-cd infra/cdk/_setup
-npm install
-npx cdk deploy -c repo=<owner>/<your-app>   # outputs the role ARN
-```
-
-Copy the role ARN into the repo's GitHub Actions secret `AWS_DEPLOY_ROLE_ARN`, attach the least-privilege policy from `infra/iam/cdk-deploy-policy.json`, and set the remaining secrets and variables (DB, JWT, EAS token) per `docs/SETUP.md` and `docs/DEPLOY.md`.
-
-App: run the Mobile build workflow (`workflow_dispatch`) to EAS build (and optionally submit) a store binary, or to ship a JS-only OTA update. See `docs/MOBILE.md`.
-
-A note on data: PostgreSQL (via Neon) is the supported database, but this template ships no fixed business schema. The reports domain models the ScamShield-style intake path, not a canonical table layout; an app cloned from here defines its own schema and migrations (`db/migrate.ts`, which the deploy workflow runs before the new Lambda goes live). For that reason there is no entity-relationship diagram here: there is no persistent schema to draw.
+Android e2e in CI builds a release APK (not debug), because a debug build loads its JS bundle from a Metro dev server that does not run on a CI emulator. See `docs/TESTING.md`.
 
 ## Repository structure
 
 ```text
 apps/
   _template/            Expo app overlay: config plugins, native refs, lib, specs, tests, verification
-    native/             iOS Swift + Android Kotlin call/SMS extension references
-    plugins/            Expo config plugins that wire the native extensions
-    specs/              Per-app spec YAML
-    tests/              jest-expo (unit + component) + Maestro scaffolding
-    verification/       Signed real-device artifacts for native/manual requirements
   _demo/                Working demo Expo app (platform self-test)
 services/
   _template/            Full NestJS service: health, reports, classifier, SQS consumer, OpenSearch
-    src/lambda.ts       HTTP Lambda handler (serverless-express)
-    src/worker.ts       SQS worker entry (root re-export of the reports consumer)
 infra/
   cdk/_template/        CDK package, includes lib/constructs/NestjsApi.ts
   cdk/_setup/           One-time GitHub OIDC + IAM role stack
   iam/                  Least-privilege deploy policy JSON
 packages/
   spec-test/            @platform/spec-test: spec runner, coverage gate, ESLint rule, CLIs
-scripts/                verify-deploy.sh, verify-attestations.sh
+scripts/                connect.sh, verify-deploy.sh, verify-attestations.sh
 .github/workflows/      ci, security, mobile-build, deploy-api
 docs/                   SETUP, DEPLOY, MOBILE, TESTING, SSDLC, adr/
 ```
 
 ## License
 
-MIT. Copyright (c) 2026 elleskay.
-</content>
-</invoke>
+MIT. Copyright (c) 2026 elleskay. See [LICENSE](LICENSE).
