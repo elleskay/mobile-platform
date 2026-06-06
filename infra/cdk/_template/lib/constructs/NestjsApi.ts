@@ -17,7 +17,7 @@ export interface NestjsApiProps {
    * Path to the NestJS service directory. Must contain `src/lambda.ts` (HTTP
    * handler) and `src/worker.ts` (SQS worker, a root re-export of
    * `src/reports/reports.consumer.ts`). The worker entry must be at the bundle
-   * root: the nodejs20.x runtime resolves a slashed handler as a bare ESM
+   * root: the nodejs22.x runtime resolves a slashed handler as a bare ESM
    * specifier and fails to load a nested file (see the WorkerFunction handler).
    */
   readonly servicePath: string;
@@ -195,7 +195,7 @@ export class NestjsApi extends Construct {
     }
 
     const commonFn = {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       architecture: lambda.Architecture.ARM_64,
       environment: {
         NODE_ENV: "production",
@@ -227,7 +227,7 @@ export class NestjsApi extends Construct {
       code: lambda.Code.fromAsset(stage),
       // Root-level entry (no slash). A slashed handler like
       // "reports/reports.consumer.handler" is resolved as a bare ESM specifier by
-      // the nodejs20.x runtime and fails init with "Cannot find module 'reports'".
+      // the nodejs22.x runtime and fails init with "Cannot find module 'reports'".
       handler: "worker.handler",
       memorySize: props.workerMemoryMb ?? 1024,
       timeout: cdk.Duration.seconds(60),
