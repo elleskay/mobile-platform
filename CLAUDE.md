@@ -137,6 +137,8 @@ All documented in `docs/DEPLOY.md` and `docs/MOBILE.md`. Don't undo the fixes:
 4. Configure GitHub secrets/vars per `docs/DEPLOY.md`, EAS per `docs/MOBILE.md`, push, verify smoke test passes.
 5. Copy `apps/_template/specs/`, `apps/_template/tests/`, the jest-expo config (`jest.config.js`, `babel.config.js`), the `.maestro/` flows, `verification/`, and the test CI workflow into the new app. Wire the spec-test ESLint rule into the app's flat config. See `docs/TESTING.md`.
 
+**Connecting is agent-guided; don't make the user figure it out.** `connect.sh` does the deterministic AWS/GitHub wiring, but the database and any interactive logins are the user's to provide. Before running `npm run setup`, settle the database with them: a Neon account (then `neonctl auth`), a Neon API key (`NEON_API_KEY`), or an existing Postgres URL (`--database-url`). If the script reports neonctl is installed but not logged in, it now fails fast on purpose, walk the user through one of those options rather than relaying the raw error. EAS login and store credentials are interactive too (see `docs/MOBILE.md`): guide the user through them, don't assume they're automated. Use `scripts/connect.sh --dry-run` to preview without changing anything.
+
 ## Spec-driven build protocol (mandatory)
 
 Every app on this platform is built from a spec and tested against that spec. The full system is documented in `docs/TESTING.md`. The agent protocol below is mandatory whenever you are building or extending an app.
