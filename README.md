@@ -14,9 +14,9 @@ Clone it, drop in your app and your service, and inherit CI/CD, infrastructure a
 
 ## The two-template family
 
-This is the mobile sibling of the web [**platform**](https://github.com/elleskay/platform) template. Mobile and NestJS belong here; web-only concerns live in the other one. The [landing site](https://elleskay.github.io/platform-site/) showcases both, with live web demos (CoverLens, Cancer Navigator, Armoury) you can open right now.
+This is the mobile sibling of the web [**platform**](https://github.com/elleskay/platform) template. Mobile and NestJS belong here; web-only concerns live in the other one. The [**live showcase**](https://elleskay.github.io/platform-site/) features the whole family, the apps below plus the web ones, all openable right now.
 
-This template is modeled on the real ScamShield stack: a citizen-facing iOS/Android app with call blocking, SMS filtering, check-and-report, push, SQS report intake, and OpenSearch clustering. There is no hosted UI to click (it is a mobile app), so the proof is in the pipeline: CI builds the demo Expo app, builds the demo NestJS service, synthesises the CDK construct against it, and runs the spec gate on every push.
+A full reconstruction of Singapore's **ScamShield** runs on this template: a React Native app, a NestJS API on AWS, a Postgres store, and an admin verification dashboard, with call blocking, SMS filtering, check-and-report, push, SQS report intake, and OpenSearch clustering. Try the [web build](https://elleskay.github.io/scamshield/) or read the [repo](https://github.com/elleskay/scamshield). CI also builds the demo Expo app and NestJS service and runs the spec gate against the construct on every push.
 
 ## Built to pair with an AI coding agent
 
