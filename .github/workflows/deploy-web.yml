@@ -1,0 +1,82 @@
+name: Deploy Web
+
+# Builds the Expo app for web (react-native-web) and publishes it to GitHub Pages.
+# This is the clickable demo: a browser URL that runs the real app UI against the
+# live API. Native-only features (background GPS, push, audio capture) degrade
+# gracefully on web. Opt in per app by setting the WEB_DEMO repo variable to
+# "true"; the template repo itself stays inert.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  # Override with repo variables if your paths differ from the convention.
+  APP_DIR: ${{ vars.APP_DIR || 'apps/_demo' }}
+  NODE_VERSION: "22"
+
+jobs:
+  # Skip unless the app opts in (WEB_DEMO=true). Keeps the template repo and any
+  # fresh fork green without publishing a demo nobody asked for.
+  preflight:
+    name: Preflight (skip unless opted in)
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        env:
+          WEB_DEMO: ${{ vars.WEB_DEMO }}
+        run: |
+          if [ "$WEB_DEMO" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::WEB_DEMO repo variable is not 'true'. Skipping web demo deploy. Set it to publish the Expo web build to GitHub Pages."
+          fi
+
+  build:
+    needs: preflight
+    if: needs.preflight.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Export web build
+        working-directory: ${{ env.APP_DIR }}
+        env:
+          # Live API the demo talks to. Public URL, no secrets.
+          EXPO_PUBLIC_API_URL: ${{ vars.DEMO_API_URL }}
+        run: npx expo export --platform web
+      - name: SPA deep-link fallback
+        run: cp ${{ env.APP_DIR }}/dist/index.html ${{ env.APP_DIR }}/dist/404.html
+      - uses: actions/configure-pages@v5
+        with:
+          # Create the Pages site automatically on first publish (no manual toggle).
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ env.APP_DIR }}/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

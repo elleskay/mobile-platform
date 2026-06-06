@@ -22,8 +22,13 @@
       "expo-secure-store",
       ["expo-build-properties", { "android": { "usesCleartextTraffic": false } }]
     ],
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "baseUrl": "/mobile-platform"
     }
   }
 }

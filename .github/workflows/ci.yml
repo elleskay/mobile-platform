@@ -62,6 +62,9 @@ jobs:
       - name: expo-doctor
         working-directory: apps/_demo
         run: npx --yes expo-doctor@latest || true
+      - name: Web export (verify the web build)
+        working-directory: apps/_demo
+        run: npx expo export --platform web
 
   api-build:
     name: Build demo API (NestJS)

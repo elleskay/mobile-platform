@@ -88,6 +88,37 @@ manages.
   then store submit. OTA cannot ship native changes.
 - JS/asset-only change: `eas update` to the channel. Instant, no review.
 
+## Web demo (clickable preview on GitHub Pages)
+
+Expo can export the app for web (react-native-web), which makes a zero-cost,
+clickable demo: a browser URL running the real screens against the live API.
+Native-only features (background GPS, push, microphone capture) degrade
+gracefully on web; auth, lists, forms, and API-backed screens work.
+
+`apps/_demo` is wired up as the reference. To add it to an app:
+
+1. **Web deps:** `npx expo install react-dom react-native-web @expo/metro-runtime`.
+2. **Web config** in `app.json`: `"web": { "bundler": "metro", "output": "single" }`
+   and `"experiments": { "baseUrl": "/<repo-name>" }` (Pages serves under the repo
+   path; omit only if you use a custom root domain).
+3. **Web-safe storage:** use `lib/secure-storage.ts` (localStorage on web, SecureStore
+   on native) instead of calling `expo-secure-store` directly. `expo-secure-store`
+   has no web implementation and throws, which silently hangs an auth gate on web.
+4. **Guard native-only calls** behind `Platform.OS !== "web"` (for example
+   `TaskManager.defineTask`, `Location.startLocationUpdatesAsync`), and keep
+   `Device.isDevice` checks on push registration.
+5. **Phone framing:** wrap the root layout in `DeviceFrame` (see
+   `apps/_demo/components/DeviceFrame.tsx`) so the web build reads as a phone
+   instead of stretching full-window. No-op on native.
+6. **Enable the workflow:** set repo variables `WEB_DEMO=true`, `DEMO_API_URL`
+   (the live API base), and optionally `APP_DIR` if your app is not `apps/_demo`.
+   The `deploy-web` workflow exports and publishes to Pages on push to `main`
+   (it auto-enables Pages on first run). It stays inert until `WEB_DEMO=true`.
+
+Local check: `cd apps/<app> && npx expo export --platform web` (CI runs this on
+`_demo` to keep the web build healthy). Serve `dist/` under the `/<repo-name>/`
+path to test the `baseUrl` locally.
+
 ## Store review notes
 
 - Call/SMS filtering features draw extra scrutiny. Document the legitimate
