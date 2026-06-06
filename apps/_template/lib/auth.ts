@@ -1,20 +1,19 @@
-import * as SecureStore from "expo-secure-store";
+import { secureGet, secureSet, secureDelete } from "./secure-storage";
 
-// Access tokens are short-lived JWTs issued by the NestJS API. They live in the
-// device keychain/keystore via expo-secure-store, never in AsyncStorage and
+// Access tokens are short-lived JWTs issued by the NestJS API. On native they
+// live in the device keychain/keystore via expo-secure-store; the web build
+// falls back to localStorage (see secure-storage.ts). Never in AsyncStorage and
 // never in the JS bundle. Refresh server-side.
 const ACCESS_TOKEN_KEY = "access_token";
 
 export async function setAccessToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token, {
-    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-  });
+  await secureSet(ACCESS_TOKEN_KEY, token);
 }
 
 export async function getAccessToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+  return secureGet(ACCESS_TOKEN_KEY);
 }
 
 export async function clearAccessToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+  await secureDelete(ACCESS_TOKEN_KEY);
 }

@@ -49,14 +49,17 @@ scripts/verify-deploy.sh             # Post-deploy smoke test
 ├── ci.yml                           # typecheck, lint, expo-doctor, nest build, cdk synth
 ├── security.yml                     # CodeQL, gitleaks, npm audit
 ├── mobile-build.yml                 # EAS build + submit + OTA update
-└── deploy-api.yml                   # OIDC, build, CDK deploy, smoke test
+├── deploy-api.yml                   # OIDC, build, CDK deploy, smoke test
+└── deploy-web.yml                   # Expo web export -> GitHub Pages demo (opt-in via WEB_DEMO var)
 ```
 
 ## What belongs in this template
 
 Only the cross-cutting platform layer:
 
-- CI/CD workflows (API deploy + mobile EAS build)
+- CI/CD workflows (API deploy + web demo + mobile EAS build)
+- Web demo capability: Expo web export to GitHub Pages (`deploy-web.yml`), the
+  `DeviceFrame` web wrapper, and the web-safe `secure-storage` shim
 - Reusable CDK construct + CDK package scaffold (`infra/cdk/_template/`)
 - IAM policy JSON
 - Expo app reference overlay (`apps/_template/`), including native call/SMS module references
@@ -136,6 +139,7 @@ All documented in `docs/DEPLOY.md` and `docs/MOBILE.md`. Don't undo the fixes:
 3. Rename `infra/cdk/_template/` to `infra/cdk/<your-app>/`, edit `bin/app.ts` stack id.
 4. Configure GitHub secrets/vars per `docs/DEPLOY.md`, EAS per `docs/MOBILE.md`, push, verify smoke test passes.
 5. Copy `apps/_template/specs/`, `apps/_template/tests/`, the jest-expo config (`jest.config.js`, `babel.config.js`), the `.maestro/` flows, `verification/`, and the test CI workflow into the new app. Wire the spec-test ESLint rule into the app's flat config. See `docs/TESTING.md`.
+6. (Optional) Enable the clickable web demo: add web deps, web config + `baseUrl`, the `DeviceFrame` wrapper, and the `secure-storage` shim, then set the `WEB_DEMO=true` and `DEMO_API_URL` repo variables. Full steps in `docs/MOBILE.md` ("Web demo"). `apps/_demo` is the working reference.
 
 **Connecting is agent-guided; don't make the user figure it out.** `connect.sh` does the deterministic AWS/GitHub wiring, but the database and any interactive logins are the user's to provide. Before running `npm run setup`, settle the database with them: a Neon account (then `neonctl auth`), a Neon API key (`NEON_API_KEY`), or an existing Postgres URL (`--database-url`). If the script reports neonctl is installed but not logged in, it now fails fast on purpose, walk the user through one of those options rather than relaying the raw error. EAS login and store credentials are interactive too (see `docs/MOBILE.md`): guide the user through them, don't assume they're automated. Use `scripts/connect.sh --dry-run` to preview without changing anything.
 
