@@ -1,16 +1,22 @@
 <div align="center">
 
-# mobile-platform
+# Ship production-grade apps, fast.
+
+### the mobile template &middot; Expo (React Native) + NestJS on AWS
+
+**Open-source Expo and NestJS on AWS template your AI coding agent can deploy to.** Point it at this repo, describe an idea, and it ships a real, live app, with no infrastructure to build.
+
+`Works with` &nbsp; **Claude Code** &nbsp;·&nbsp; **Codex** &nbsp;·&nbsp; **Cursor** &nbsp;·&nbsp; **Windsurf** &nbsp;·&nbsp; **Cline**
 
 [![CI](https://github.com/elleskay/mobile-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/elleskay/mobile-platform/actions/workflows/ci.yml) &nbsp;[![Security](https://github.com/elleskay/mobile-platform/actions/workflows/security.yml/badge.svg)](https://github.com/elleskay/mobile-platform/actions/workflows/security.yml) &nbsp;![IaC](https://img.shields.io/badge/IaC-AWS%20CDK-4F46E5) &nbsp;![deploys](https://img.shields.io/badge/deploys-OIDC%2C%20no%20stored%20keys-06B6D4) &nbsp;[![license](https://img.shields.io/badge/license-MIT-64748B)](LICENSE)
 
-**Open-source template for shipping production-grade React Native (Expo) apps backed by a NestJS API on AWS serverless, fast, with an AI coding agent or by hand.**
+### [Live demos and the full story: elleskay.github.io/platform-site](https://elleskay.github.io/platform-site/)
 
-Clone it, drop in your app and your service, and inherit CI/CD, infrastructure as code, security scanning, native call/SMS module references, OIDC deploys with zero stored credentials, and a spec-driven test gate that refuses to ship an app whose requirements are not proven.
-
-### [See the full story: elleskay.github.io/platform-site](https://elleskay.github.io/platform-site/)
+`spec-driven gate` &nbsp;·&nbsp; `0 stored keys` &nbsp;·&nbsp; `native call/SMS` &nbsp;·&nbsp; `MIT`
 
 </div>
+
+Clone it, drop in your app and your service, and inherit CI/CD, infrastructure as code, security scanning, native call/SMS module references, OIDC deploys with zero stored credentials, and a spec-driven test gate that refuses to ship an app whose requirements are not proven.
 
 ## The two-template family
 
