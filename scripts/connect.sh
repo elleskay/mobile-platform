@@ -21,7 +21,8 @@
 # token and guides the rest rather than pretending to do it headlessly.
 #
 # Prerequisites: gh (authenticated), aws (credentials with permission to create
-# an IAM role + OIDC provider), node/npx. Optional: neonctl, eas-cli, openssl.
+# an IAM role + OIDC provider), node/npx. Optional: neonctl (logged in via
+# 'neonctl auth', else pass --database-url/--skip-db), eas-cli, openssl.
 #
 # Usage:
 #   scripts/connect.sh [options]
@@ -79,6 +80,29 @@ warn() { printf "${c_yellow} !${c_off} %s\n" "$1"; }
 die()  { printf "${c_red}error:${c_off} %s\n" "$1" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 run()  { if [ "$DRY_RUN" = 1 ]; then printf "${c_dim}  would run: %s${c_off}\n" "$*"; else "$@"; fi; }
+
+# Run a command with a hard timeout so a stuck CLI can't hang the whole script
+# (e.g. an installed-but-logged-out neonctl that waits forever). Prefers
+# timeout/gtimeout; falls back to a background-kill where neither exists (macOS).
+with_timeout() {
+  local secs="$1"; shift
+  local rc=0
+  if have timeout; then
+    timeout "$secs" "$@" || rc=$?
+  elif have gtimeout; then
+    gtimeout "$secs" "$@" || rc=$?
+  else
+    "$@" & local pid=$!
+    ( sleep "$secs"; kill -9 "$pid" 2>/dev/null ) & local watcher=$!
+    wait "$pid" 2>/dev/null || rc=$?
+    kill -9 "$watcher" 2>/dev/null || true
+  fi
+  return "$rc"
+}
+
+# True only when neonctl is installed AND authenticated. Without the auth check,
+# a present-but-logged-out neonctl makes `neonctl projects create` block forever.
+neon_ready() { with_timeout 20 neonctl me >/dev/null 2>&1; }
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -167,17 +191,21 @@ if [ "$SKIP_DB" = 1 ]; then
   warn "Skipping database. Set the DATABASE_URL secret yourself."
 elif [ -n "$DATABASE_URL" ]; then
   ok "Using the DATABASE_URL you provided"
-elif have neonctl; then
-  warn "Provisioning a Neon Postgres project named '$REPO_NAME'"
-  if [ "$DRY_RUN" = 0 ]; then
-    DATABASE_URL="$(neonctl projects create --name "$REPO_NAME" --output json 2>/dev/null \
-      | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);const u=(j.connection_uris&&j.connection_uris[0]&&(j.connection_uris[0].connection_uri||j.connection_uris[0].connection_string))||'';process.stdout.write(u)}catch(e){}})")"
-    [ -n "$DATABASE_URL" ] || die "Neon project created but could not read a connection string. Re-run with --database-url <url>."
-    ok "Neon database provisioned"
-  else
+elif [ "$DRY_RUN" = 1 ]; then
+  if have neonctl; then
     run "neonctl projects create --name $REPO_NAME"
     DATABASE_URL="postgres://...neon..."
+  else
+    warn "neonctl not found. A real run would prompt for a DATABASE_URL (or pass --database-url)."
   fi
+elif have neonctl && neon_ready; then
+  warn "Provisioning a Neon Postgres project named '$REPO_NAME'"
+  DATABASE_URL="$(with_timeout 120 neonctl projects create --name "$REPO_NAME" --output json 2>/dev/null \
+    | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);const u=(j.connection_uris&&j.connection_uris[0]&&(j.connection_uris[0].connection_uri||j.connection_uris[0].connection_string))||'';process.stdout.write(u)}catch(e){}})")"
+  [ -n "$DATABASE_URL" ] || die "Neon project create returned no connection string. Re-run with --database-url <url>."
+  ok "Neon database provisioned"
+elif have neonctl; then
+  die "neonctl is installed but not logged in, so auto-provisioning would hang. Run 'neonctl auth' (or set NEON_API_KEY), then re-run; or pass --database-url <url> or --skip-db."
 else
   warn "neonctl not found. Paste a Postgres connection string (or Ctrl-C and re-run with --database-url):"
   printf "DATABASE_URL: "; read -r DATABASE_URL
