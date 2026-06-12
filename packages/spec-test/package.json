@@ -60,7 +60,7 @@
     "@playwright/test": "^1.48.0",
     "@types/eslint": "^9.0.0",
     "@types/estree": "^1.0.0",
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.19.43",
     "eslint": "^9.0.0",
     "typescript": "^5.4.0",
     "vitest": "^2.0.0"
