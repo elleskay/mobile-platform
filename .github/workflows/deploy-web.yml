@@ -63,7 +63,7 @@ jobs:
         run: npx expo export --platform web
       - name: SPA deep-link fallback
         run: cp ${{ env.APP_DIR }}/dist/index.html ${{ env.APP_DIR }}/dist/404.html
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         with:
           # Create the Pages site automatically on first publish (no manual toggle).
           enablement: true
