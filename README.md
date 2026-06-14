@@ -1,189 +1,277 @@
-<div align="center">
+# Mobile Platform System Design
 
-<img src="docs/banner.png" alt="mobile-platform: ship production-grade Expo and NestJS apps to AWS, fast" width="100%">
+> A system design breakdown of mobile-platform, the mobile sibling of the web platform template. Point an AI coding agent at it, describe an idea, and it ships a real, live Expo app plus a NestJS API to AWS, with native call and SMS interception, async report intake, keyless deploys, and a spec gate that proves even the OS-level behaviour. The system being designed here is the framework itself.
+>
+> **Live demos and the full story** at https://elleskay.github.io/platform-site/
+>
+> The web sibling, for web-only apps, is [platform](https://github.com/elleskay/platform).
 
-**Point your AI coding agent at this repo, describe an idea, and it ships a real, live app to AWS, with no infrastructure to build.**
+---
 
-`Works with` &nbsp; **Claude Code** &nbsp;·&nbsp; **Codex** &nbsp;·&nbsp; **Cursor** &nbsp;·&nbsp; **Windsurf** &nbsp;·&nbsp; **Cline**
+## Understanding the Problem
 
-[![CI](https://github.com/elleskay/mobile-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/elleskay/mobile-platform/actions/workflows/ci.yml) &nbsp;[![Security](https://github.com/elleskay/mobile-platform/actions/workflows/security.yml/badge.svg)](https://github.com/elleskay/mobile-platform/actions/workflows/security.yml) &nbsp;![IaC](https://img.shields.io/badge/IaC-AWS%20CDK-4F46E5) &nbsp;![deploys](https://img.shields.io/badge/deploys-OIDC%2C%20no%20stored%20keys-06B6D4) &nbsp;[![license](https://img.shields.io/badge/license-MIT-64748B)](LICENSE)
+Mobile makes the trust problem harder than web. An agent can write the app and the API, but two things resist proof: the most valuable features, blocking a scam call or filtering a scam text, run in the phone's operating system where no JavaScript test can reach them, and there is a backend to stand up. Mobile-platform is a template an agent clones per app, inheriting an Expo app, a NestJS API on AWS, and a gate that proves both the code and the native behaviour, or fails.
 
-### [Live demos and the full story: elleskay.github.io/platform-site](https://elleskay.github.io/platform-site/)
+The defining constraint is proving what the test runner cannot run. OS-level behaviour must be verifiable, async work must be reliable, deploys must carry no stored keys, and one honest gate must span four different test runners. Everything else follows from that.
 
-`spec-driven gate` &nbsp;·&nbsp; `0 stored keys` &nbsp;·&nbsp; `native call/SMS` &nbsp;·&nbsp; `MIT`
+### Functional Requirements
 
-</div>
+- An agent should be able to scaffold an app, a service, and the infra, and ship the app through EAS and the API to AWS.
+- Native call blocking and SMS filtering should be surfaced through config plugins, with the OS doing the interception.
+- A single construct call should deploy the API as an HTTP Lambda with an SQS report-intake queue, a dead-letter queue, an idempotent worker, and optional OpenSearch.
+- The spec gate should cover every requirement with a passing asserting test or a fresh signed real-device artifact.
+- One command should wire the API's keyless cloud connection.
+- The template should dogfood itself through a demo app and service.
 
-Clone it, drop in your app and your service, and inherit CI/CD, infrastructure as code, security scanning, native call/SMS module references, OIDC deploys with zero stored credentials, and a spec-driven test gate that refuses to ship an app whose requirements are not proven.
+Design choices, deliberately out of scope: the API is serverless only, the infra is copied not imported, and this template is mobile and NestJS, with web-only concerns living in the web sibling.
 
-## The two-template family
+### Non-Functional Requirements
 
-This is the mobile sibling of the web [**platform**](https://github.com/elleskay/platform) template. Mobile and NestJS belong here; web-only concerns live in the other one. The [**live showcase**](https://elleskay.github.io/platform-site/) features the whole family, the apps below plus the web ones, all openable right now.
+- OS-level behaviour must be provable even though JavaScript tests cannot run it.
+- Async report intake should be reliable, with retries, a dead-letter path, and idempotent processing.
+- Deploys should carry zero long-lived AWS credentials, on a least-privilege role.
+- One test gate should span all four runners and be honest about what it cannot catch.
+- Each app should be self-contained, so a foundation change never propagates without an explicit pull.
+- The serverless API should cost near zero when idle.
 
-A full reconstruction of Singapore's **ScamShield** runs on this template: a React Native app, a NestJS API on AWS, a Postgres store, and an admin verification dashboard, with call blocking, SMS filtering, check-and-report, push, SQS report intake, and OpenSearch clustering. Try the [web build](https://elleskay.github.io/scamshield/) or read the [repo](https://github.com/elleskay/scamshield). CI also builds the demo Expo app and NestJS service and runs the spec gate against the construct on every push.
+---
 
-## Built to pair with an AI coding agent
+## The Set Up
 
-Point Claude Code, Codex, Cursor, Windsurf, or Cline at this repo and describe an app: it scaffolds the app, the service, and the infra from the templates, builds, and ships. The agent conventions live in [CLAUDE.md](CLAUDE.md), including a mandatory spec-first build protocol.
+### Planning the Approach
 
-One command wires the API's cloud connection so every push deploys with no stored keys:
+Mobile-platform is one half of a two-template family, mobile and NestJS here, web in the sibling. You clone it per app and copy the pieces in rather than importing them, so a breaking change lands only when an app pulls it. Native call and SMS features are wired through Expo config plugins so the managed workflow is kept and the native code stays declarative. And because the headline features run in the OS, the spec system has a verify level that decides what counts as proof, with OS-level requirements proven by signed real-device evidence rather than a test.
 
-```bash
-npm run setup          # scripts/connect.sh
-npm run setup -- --dry-run   # preview without changing anything
+The service is a scaffold, not a finished backend. It ships the API surface, the SQS and worker wiring, the classifier with its heuristic fallback, and health, and it leaves the persistence and the server-side JWT issuing as per-app work. A real app on the template, such as ScamShield, fills those in. The architecture below is what such an app looks like once it does.
+
+### Defining the Core Entities
+
+The pieces of the framework.
+
+- **Expo app overlay**, the app with config plugins and native references (iOS Swift, Android Kotlin).
+- **NestJS service scaffold**, the API with health, reports, classifier, and the SQS consumer.
+- **NestjsApi construct**, one CDK call that deploys an HTTP Lambda behind API Gateway, an SQS report-intake queue with a dead-letter queue, an idempotent worker Lambda, and an optional OpenSearch domain.
+- **spec-test package**, a runner dual-published as ESM and CJS, the coverage gate, the ESLint no-empty-assertion rule, and the artifact tools spec-attest and verify-attestations.
+- **Workflows**, five of them: ci, security, mobile build, API deploy, and an optional web export.
+- **Setup** (scripts/connect.sh), the **least-privilege IAM policy**, and the **demo app and service** that self-test the foundation.
+
+### API or System Interface
+
+The framework's surface is a construct, a spec gate that spans four runners, and a few commands.
+
+```
+The construct (one call deploys the API)
+  new NestjsApi(stack, "Api", { ... })
+    wires API Gateway, an HTTP Lambda, an SQS queue plus DLQ, an idempotent worker, and optional OpenSearch
+
+The spec gate (one record, four runners)
+  specTest("[APP-DOMAIN-NNN] title", fn)        bind a test to a requirement, any runner
+  verify levels                                 unit and component via jest-expo, api via Vitest,
+                                                e2e via Maestro, native and manual via signed artifacts
+  spec-attest / verify-attestations             stamp and check the signed real-device artifacts
+  spec-coverage                                 the gate, exits nonzero on any gap
+
+Setup, build, and deploy
+  npm run setup        wire the API to GitHub and AWS (OIDC role, database, secrets), idempotent, --dry-run
+  npm run test:spec    run every runner and the gate
+  EAS build / submit / update    build, submit, and OTA-update the app
 ```
 
-It ensures the GitHub OIDC provider, deploys a least-privilege deploy role, provisions a database, generates `JWT_SECRET`, and sets every GitHub Actions secret and variable. The agent guides you through the interactive steps (database choice, and EAS login for the app), the AWS/GitHub half is automated.
+---
 
-## What it does
+## High-Level Design
 
-- Ships a per-app clone target, not a dependency: an Expo app overlay, a NestJS service scaffold, a CDK package, and a one-time AWS setup stack, all copied and renamed per app. Each app pins its own copy, so a breaking change never propagates without explicit action.
-- Surfaces native call blocking and SMS filtering through Expo config plugins: iOS Call Directory and Message Filter extensions (Swift), Android CallScreeningService and SMS role (Kotlin). The JS layer manages data; the OS does the interception.
-- Provides a reusable `NestjsApi` CDK construct: HTTP Lambda behind API Gateway, an SQS report-intake queue with a dead-letter queue, an idempotent worker Lambda, and an optional OpenSearch domain.
-- Runs four GitHub Actions workflows: CI (typecheck, lint, expo-doctor, nest build, cdk synth, spec gate), security (CodeQL, gitleaks, npm audit), mobile build (EAS build, submit, OTA update), and API deploy (OIDC, CDK deploy, smoke test).
-- Enforces a spec-driven test gate: every requirement is covered by a passing, asserting test or a fresh signed real-device artifact, or the build fails.
-- Ships least-privilege IAM (a deploy policy and an OIDC role) so the deploy role is never `AdministratorAccess`.
-- Dogfoods all of the above through `apps/_demo/` and `services/_template/`, built by the same workflows an app inherits.
+We build the design one functional requirement at a time.
 
-## Logical architecture
+### 1) An agent scaffolds the app, service, and infra, and ships
+
+You clone the template, overlay the app and the service, rename the CDK package, run one setup command, write the spec and the tests and code until the gate is green, and push. The app ships through EAS, the API deploys to AWS over OIDC.
 
 ```mermaid
 flowchart TD
-  app["Expo app (React Native + Expo Router, TS strict)"]
-  plugins["Config plugins (app.config.ts)"]
-  native["Native extensions: iOS Swift, Android Kotlin"]
-  api["NestJS API (HTTP Lambda)"]
-  queue["SQS report-intake queue + DLQ"]
-  worker["Worker Lambda (idempotent consumer)"]
-  classifier["Classifier (LLM with heuristic fallback)"]
-  pg["PostgreSQL (Neon serverless)"]
-  search["OpenSearch (optional clustering)"]
-  push["Push (Expo: APNs / FCM)"]
-
-  app --> plugins
-  plugins --> native
-  app --> api
-  api --> queue
-  queue --> worker
-  worker --> classifier
-  worker --> pg
-  worker --> search
-  worker --> push
+  Clone[Clone the template] --> Overlay[Overlay the app and the service]
+  Overlay --> Rename[Rename the CDK package]
+  Rename --> Setup[npm run setup, wires the API to GitHub and AWS]
+  Setup --> Spec[Write specs, then tests and code until the gate is green]
+  Spec --> Push[git push]
+  Push --> Gate{Spec gate, security, and build pass?}
+  Gate -->|no| Block[Blocked]
+  Gate -->|yes| Ship[EAS builds the app, CDK deploys the API over OIDC]
+  Ship --> Smoke[Smoke test the API, app to the stores]
 ```
 
-The native extensions run out of process and intercept calls/SMS at the OS level; the app reaches them only through documented config-plugin extension points.
+### 2) Native call and SMS are surfaced through config plugins
 
-## Physical architecture
-
-What one app deployed on the `NestjsApi` construct looks like in AWS:
+The app manages data in JavaScript, but the interception runs out of process in the OS. Expo config plugins inject the iOS Call Directory and Message Filter and the Android CallScreeningService at prebuild, so the managed workflow is kept and the native code is declarative. SMS filtering is the iOS Message Filter, and on Android the call screening is the CallScreeningService.
 
 ```mermaid
 flowchart TD
-  device["Mobile device (iOS / Android binary from EAS)"]
-  apigw["API Gateway HTTP API"]
-  http["HTTP Lambda (lambda.handler, arm64)"]
-  q["SQS ReportsQueue"]
-  dlq["ReportsDlq (maxReceiveCount 5)"]
-  wkr["Worker Lambda (worker.handler, arm64)"]
-  neon["Neon PostgreSQL"]
-  os["OpenSearch domain (optional)"]
-
-  device --> apigw
-  apigw --> http
-  http --> q
-  q --> wkr
-  q --> dlq
-  wkr --> neon
-  wkr --> os
+  app[Expo app, React Native and Expo Router] --> plugins[Config plugins in app.config]
+  plugins --> native[Native extensions, iOS Swift and Android Kotlin]
+  app --> api[NestJS API, HTTP Lambda]
+  api --> queue[SQS report-intake queue plus DLQ]
+  queue --> worker[Worker Lambda, idempotent consumer]
+  worker --> classifier[Classifier, LLM with heuristic fallback]
+  worker --> pg[(Neon Postgres)]
+  worker --> search[(OpenSearch, optional)]
+  worker --> push[Expo push, APNs and FCM]
 ```
 
-## Spec-driven development
+### 3) The API takes reports asynchronously
 
-Every app on this platform is built from a spec and tested against it. The first artifact for any app is `specs/<app>.yml`: each requirement gets a unique ID, a category, a severity, a `verify` level, and a given/when/then. Tests name themselves with the requirement ID in brackets; a per-runner recorder parses the `[ID]` and records pass or fail. The runner is `@platform/spec-test`, dual-published as ESM and CJS so Vitest (API), jest-expo (app unit and component), Maestro (app e2e), and Node CLIs all consume it.
+The HTTP Lambda accepts a report and returns fast, handing the slow work to a queue. A worker Lambda drains it idempotently, classifies, persists, and pushes, with a dead-letter queue catching repeated failures. The NestjsApi construct wires this once for every app.
 
-The gate (`spec-coverage`) parses the spec, reads the coverage record, evaluates any native/manual signed artifacts, and exits non-zero on any gap. It catches a missing test, a covering test that fails, a `[ID]` test with zero `expect()` calls (an ESLint rule fails before tests run), a requirement proven in the wrong layer, and a `native`/`manual` requirement whose signed artifact is missing, unsigned, tampered, or stale.
+```mermaid
+flowchart TD
+  device[Mobile device, binary from EAS] --> apigw[API Gateway HTTP API]
+  apigw --> http[HTTP Lambda, arm64]
+  http --> q[SQS reports queue]
+  q --> wkr[Worker Lambda, arm64]
+  q -->|repeated failure| dlq[(Dead-letter queue, maxReceive 5)]
+  wkr --> neon[(Neon Postgres)]
+  wkr -.optional.-> os[(OpenSearch)]
+```
 
-OS-level behavior (call blocking, SMS filtering) cannot have a JS test, because the interception runs out of process. Those `verify: native | manual` requirements are proven instead by signed real-device artifacts under `verification/`, with two layers: an in-file `sha256` stamped by `spec-attest` (tampering is caught), and the GPG/SSH signature on the commit that last touched the artifact (accountability, enforced by `scripts/verify-attestations.sh`). Artifacts go stale on app-version bumps, OS baseline drift, or a 90-day TTL, forcing real-device re-verification.
+### 4) The gate proves every requirement, code and native alike
 
-What the gate does not catch, stated honestly: a wrong spec, behavior nobody wrote a spec entry for, and decomposed-journey gaps. The mitigation for the last is at least one journey-level Maestro e2e per user-facing feature, plus the native artifact layer. See `docs/TESTING.md` and `docs/adr/0001-testing-architecture.md`.
+Tests across four runners record to one coverage record that a single gate reads, and OS-level requirements are proven by signed real-device artifacts. The gate fails on a missing test, a failing test, an assertion-free test, a requirement proven in the wrong layer, or a native artifact that is missing, unsigned, tampered, or stale.
+
+---
+
+## Potential Deep Dives
+
+### 1) How do we prove OS-level behaviour that JavaScript tests cannot run?
+
+Call blocking and SMS filtering run out of process in the OS, so no app test can exercise them, yet a 100 percent gate would claim they are covered.
+
+<details>
+<summary><strong>Bad solution: mark them covered and hope</strong></summary>
+
+Tag the native requirements as covered with no real check. The gate lies, and a broken block or filter ships unnoticed.
+</details>
+
+<details>
+<summary><strong>Good solution: manual QA each release</strong></summary>
+
+A person tests on a real device before each release and notes it. Real evidence, but unenforced, untied to the build, and easy to skip.
+</details>
+
+<details>
+<summary><strong>Great solution: signed, freshness-checked real-device artifacts</strong></summary>
+
+Prove those requirements with committed real-device artifacts under verification/, carrying an in-file sha256 so tampering is caught, on a commit signed by an allowed signer for accountability, and going stale on an app-version bump, an OS-baseline drift, or a 90-day TTL. The gate evaluates them, so native behaviour cannot ship on missing, unsigned, tampered, or stale evidence. This is what mobile-platform runs.
+</details>
+
+### 2) How do we add native call and SMS code without ejecting?
+
+Expo's managed workflow does not include the native call and SMS extensions, but ejecting to edit them by hand is costly.
+
+<details>
+<summary><strong>Bad solution: eject to the bare workflow</strong></summary>
+
+Eject and hand-edit the ios and android directories. You lose the managed workflow and OTA updates, and the native edits are easy to lose when the projects regenerate.
+</details>
+
+<details>
+<summary><strong>Good solution: patch the native files after prebuild</strong></summary>
+
+Run a script that patches the generated native projects each prebuild. Better, but the patch drifts as the native projects change and breaks silently.
+</details>
+
+<details>
+<summary><strong>Great solution: Expo config plugins</strong></summary>
+
+Config plugins inject the iOS Call Directory and Message Filter and the Android CallScreeningService at prebuild, declaratively. The managed workflow stays, the native code lives as referenced sources, and the JS layer only manages data while the OS does the interception. This is what mobile-platform runs.
+</details>
+
+### 3) How do we keep one honest gate across four test runners?
+
+The app and API are tested by jest-expo, Vitest, and Maestro, plus native artifacts, and each could report coverage its own way.
+
+<details>
+<summary><strong>Bad solution: each runner reports its own coverage</strong></summary>
+
+Let every runner emit coverage in its own format. There is no single source of truth, and it is easy to show coverage in one runner that does not reflect the requirements.
+</details>
+
+<details>
+<summary><strong>Good solution: a shared naming convention by hand</strong></summary>
+
+Agree that tests name themselves with the requirement id. Better, but nothing enforces it and the runners still do not agree on a record format.
+</details>
+
+<details>
+<summary><strong>Great solution: one runner, dual-published, one record</strong></summary>
+
+Ship one spec-test runner, published as both ESM and CJS so Vitest, jest-expo, Maestro, and the CLIs all consume it, each recording to one coverage record. A single gate reads that record and checks every requirement has a passing, asserting test in the right layer. It is also honest about its limits, a wrong spec, unspecced behaviour, and decomposed-journey gaps are not caught, which is why a journey-level Maestro e2e per feature is required. This is what mobile-platform runs.
+</details>
+
+### 4) How do we accept a report reliably without blocking the user?
+
+Classifying and storing a report is slow work that should not sit on the request path or be lost on failure.
+
+<details>
+<summary><strong>Bad solution: do it inline in the request</strong></summary>
+
+Classify and persist inside the HTTP request. The user waits, and any failure loses the report.
+</details>
+
+<details>
+<summary><strong>Good solution: a background thread</strong></summary>
+
+Return fast and finish in the background. But the Lambda can freeze the moment the response is sent, dropping the work.
+</details>
+
+<details>
+<summary><strong>Great solution: a queue, an idempotent worker, and a DLQ</strong></summary>
+
+The HTTP Lambda enqueues to SQS and returns fast, an idempotent worker Lambda drains it, and a dead-letter queue catches anything that fails five times. The NestjsApi construct wires this once for every app, so reliable intake is inherited, not rebuilt. This is what mobile-platform runs.
+</details>
+
+### 5) How do we run a mobile end-to-end test in CI without a Metro server?
+
+A debug build loads its JavaScript from a Metro dev server that does not run on a CI emulator.
+
+<details>
+<summary><strong>Bad solution: build a debug APK in CI</strong></summary>
+
+Build the usual debug APK. It expects a Metro server to serve its bundle, which is not running on the CI emulator, so the app never starts.
+</details>
+
+<details>
+<summary><strong>Good solution: run Metro in CI</strong></summary>
+
+Start a Metro server alongside the emulator. Heavy and flaky to coordinate, and slow.
+</details>
+
+<details>
+<summary><strong>Great solution: a release APK driven by Maestro</strong></summary>
+
+Build a release APK with the JavaScript bundled in, and drive it with Maestro on a KVM Android emulator on free Linux runners, no Metro and no macOS runner needed. The choice is recorded in ADR 0001. This is what mobile-platform runs.
+</details>
+
+---
 
 ## Tech stack
 
-| Area | Choice |
+| Layer | Tech |
 |---|---|
-| App | Expo (React Native) + Expo Router, TypeScript strict |
-| Native modules | iOS Call Directory + Message Filter (Swift), Android CallScreeningService + SMS (Kotlin), via config plugins |
-| API | NestJS (TypeScript strict) on AWS Lambda + API Gateway HTTP API |
-| Validation | class-validator on every controller DTO; Zod where a schema is shared with the app |
-| Auth | JWT access tokens issued by the API, stored on device in expo-secure-store |
-| Data | PostgreSQL (Neon serverless) |
-| Messaging | AWS SQS (report intake) + dead-letter queue |
-| Search | OpenSearch (optional, clustering similar reports) |
-| Classifier | LLM endpoint with a deterministic heuristic fallback |
-| Push | Expo push (APNs / FCM) |
-| IaC | AWS CDK (reusable `NestjsApi` construct + per-app package) |
-| App build/deploy | EAS Build / Submit / Update |
-| API deploy | GitHub Actions + CDK over GitHub OIDC (no stored AWS keys) |
-| Test runner | `@platform/spec-test` (Vitest, jest-expo, Maestro, signed artifacts) |
-| Tooling | ESLint 9, Prettier, Commitlint (Conventional Commits), Node 20+ |
-
-## Quickstart: clone to shipped
-
-```bash
-gh repo create my-app --template elleskay/mobile-platform --clone --private
-cd my-app && npm install
-cp -r apps/_demo apps/app           # overlay native refs from apps/_template
-cp -r services/_template services/api
-git mv infra/cdk/_template infra/cdk/my-app   # edit bin/app.ts stack id
-npm run setup                        # wires GitHub + AWS for the API
-# write specs/app.yml, then tests + code until the gate is green, then push
-```
-
-Full step by step: `docs/SETUP.md` (connection), `docs/MOBILE.md` (EAS, native), `docs/DEPLOY.md` (deploy + gotchas).
-
-## Local development
-
-This is an npm workspaces monorepo (`apps/*`, `services/*`, `packages/*`).
-
-```bash
-npm ci                      # install the whole workspace
-
-cd apps/_demo && npm start          # expo start (demo app)
-cd services/_template && npm run start:dev   # local NestJS HTTP on :3000
-cd packages/spec-test && npm run build       # dual ESM + CJS runner
-```
-
-Native call/SMS features require `expo prebuild` and a full native build; the references in `apps/_template/native/` are copied in via config plugins, not committed as generated `ios/`/`android/` dirs. See `docs/MOBILE.md`.
-
-## Testing
-
-- Unit and component (app): jest-expo, recorded through `@platform/spec-test/jest`.
-- API: Vitest, recorded through `@platform/spec-test/vitest`.
-- End-to-end (app): Maestro flows, ingested by `spec-maestro`.
-- Native/manual: signed real-device artifacts under `verification/`, verified by `spec-attest` and `scripts/verify-attestations.sh`.
-- The gate (`spec-coverage`) ties them together and is what `npm run test:spec` runs in a cloned app. CI runs the gate against the runner's own samples to prove the pass and fail paths both behave.
-
-Android e2e in CI builds a release APK (not debug), because a debug build loads its JS bundle from a Metro dev server that does not run on a CI emulator. See `docs/TESTING.md`.
-
-## Repository structure
-
-```text
-apps/
-  _template/            Expo app overlay: config plugins, native refs, lib, specs, tests, verification
-  _demo/                Working demo Expo app (platform self-test)
-services/
-  _template/            Full NestJS service: health, reports, classifier, SQS consumer, OpenSearch
-infra/
-  cdk/_template/        CDK package, includes lib/constructs/NestjsApi.ts
-  cdk/_setup/           One-time GitHub OIDC + IAM role stack
-  iam/                  Least-privilege deploy policy JSON
-packages/
-  spec-test/            @platform/spec-test: spec runner, coverage gate, ESLint rule, CLIs
-scripts/                connect.sh, verify-deploy.sh, verify-attestations.sh
-.github/workflows/      ci, security, mobile-build, deploy-api
-docs/                   SETUP, DEPLOY, MOBILE, TESTING, SSDLC, adr/
-```
+| App | Expo and React Native, Expo Router, TypeScript strict |
+| Native | iOS Call Directory and Message Filter (Swift), Android CallScreeningService (Kotlin), via config plugins |
+| API | NestJS (TypeScript strict) on AWS Lambda and API Gateway HTTP API |
+| Validation | class-validator on every DTO |
+| Auth | the client stores a JWT in expo-secure-store, an app issues it |
+| Data | a Neon Postgres connection wired by setup, persistence added per app |
+| Messaging | AWS SQS report intake with a dead-letter queue, an idempotent worker |
+| Search | OpenSearch, optional, for clustering similar reports |
+| Classifier | an LLM endpoint with a deterministic heuristic fallback |
+| Push | Expo push, APNs and FCM |
+| IaC | AWS CDK, the reusable NestjsApi construct, copied per app |
+| App build | EAS Build, Submit, and Update |
+| API deploy | GitHub Actions and CDK over OIDC, no stored keys |
+| Testing | spec-test over Vitest, jest-expo, Maestro, and signed real-device artifacts |
+| Tooling | ESLint 9, Prettier, Commitlint, Node 20+ |
 
 ## License
 
-MIT. Copyright (c) 2026 elleskay. See [LICENSE](LICENSE).
+MIT.
