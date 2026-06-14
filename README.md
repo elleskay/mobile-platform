@@ -57,24 +57,31 @@ The pieces of the framework.
 
 ### API or System Interface
 
-The framework's surface is a construct, a spec gate that spans four runners, and a few commands.
+The framework's surface is a construct, a spec gate that spans four runners, and a few commands, not an HTTP API.
+
+The construct deploys the API in one call. A single `new NestjsApi(...)` stands up API Gateway, an HTTP Lambda, an SQS queue with its dead-letter queue, an idempotent worker that drains the queue, and an optional OpenSearch domain. You get the full async backend (fast accept, queued handoff, retry-safe processing) per app without hand-wiring any of those resources.
 
 ```
-The construct (one call deploys the API)
-  new NestjsApi(stack, "Api", { ... })
-    wires API Gateway, an HTTP Lambda, an SQS queue plus DLQ, an idempotent worker, and optional OpenSearch
+new NestjsApi(stack, "Api", { ... }) -> Construct
+  wires API Gateway, an HTTP Lambda, an SQS queue plus DLQ, an idempotent worker, and optional OpenSearch
+```
 
-The spec gate (one record, four runners)
-  specTest("[APP-DOMAIN-NNN] title", fn)        bind a test to a requirement, any runner
-  verify levels                                 unit and component via jest-expo, api via Vitest,
-                                                e2e via Maestro, native and manual via signed artifacts
-  spec-attest / verify-attestations             stamp and check the signed real-device artifacts
-  spec-coverage                                 the gate, exits nonzero on any gap
+The spec gate is one record verified across four runners. Each requirement is bound to a `specTest` that runs on whichever runner fits (unit and component via jest-expo, api via Vitest, e2e via Maestro), and OS-level behaviour that no emulator can prove is covered by signed real-device artifacts that the gate stamps and checks. The coverage tool then exits nonzero on any uncovered or unverified requirement, so a single record either passes everywhere or fails the build.
 
-Setup, build, and deploy
-  npm run setup        wire the API to GitHub and AWS (OIDC role, database, secrets), idempotent, --dry-run
-  npm run test:spec    run every runner and the gate
-  EAS build / submit / update    build, submit, and OTA-update the app
+```
+specTest("[APP-DOMAIN-NNN] title", fn)  -> bound test   bind a test to a requirement, any runner
+verify levels                           -> unit and component via jest-expo, api via Vitest,
+                                           e2e via Maestro, native and manual via signed artifacts
+spec-attest / verify-attestations       -> stamp and check the signed real-device artifacts
+spec-coverage                           -> exit code    the gate, nonzero on any gap
+```
+
+Setup, build, and deploy run through a few commands. `npm run setup` wires keyless cloud access once (the OIDC role, database, and secrets that let GitHub and AWS talk without long-lived keys), and it is idempotent with a --dry-run. `npm run test:spec` runs every runner and the coverage gate in one shot, and the EAS commands build the app binary, submit it to the stores, and push OTA updates.
+
+```
+npm run setup      -> wires the API to GitHub and AWS (OIDC role, database, secrets), idempotent, --dry-run
+npm run test:spec  -> run every runner and the gate
+EAS build / submit / update  -> build, submit, and OTA-update the app
 ```
 
 ---
@@ -88,48 +95,63 @@ We build the design one functional requirement at a time.
 You clone the template, overlay the app and the service, rename the CDK package, run one setup command, write the spec and the tests and code until the gate is green, and push. The app ships through EAS, the API deploys to AWS over OIDC.
 
 ```mermaid
-flowchart TD
-  Clone[Clone the template] --> Overlay[Overlay the app and the service]
-  Overlay --> Rename[Rename the CDK package]
-  Rename --> Setup[npm run setup, wires the API to GitHub and AWS]
-  Setup --> Spec[Write specs, then tests and code until the gate is green]
-  Spec --> Push[git push]
-  Push --> Gate{Spec gate, security, and build pass?}
-  Gate -->|no| Block[Blocked]
-  Gate -->|yes| Ship[EAS builds the app, CDK deploys the API over OIDC]
-  Ship --> Smoke[Smoke test the API, app to the stores]
+flowchart LR
+  Agent["AI coding agent<br/>- clones template<br/>- overlays app and service<br/>- renames CDK package<br/>- runs npm run setup (wires API to GitHub and AWS)<br/>- writes specs, then tests and code until gate is green<br/>- git push"]
+  GH["GitHub Actions<br/>- spec gate, security, build"]
+  Block["Blocked"]
+  EAS["EAS<br/>- builds the app<br/>- submits to the stores"]
+  GHActions["GitHub Actions<br/>- CDK deploys the API over OIDC<br/>- smoke test the API"]
+  Agent --> GH
+  GH -->|no| Block
+  GH -->|"yes, ship binary"| EAS
+  GH -->|"yes, deploy API over OIDC"| GHActions
 ```
 
 ### 2) Native call and SMS are surfaced through config plugins
 
 The app manages data in JavaScript, but the interception runs out of process in the OS. Expo config plugins inject the iOS Call Directory and Message Filter and the Android CallScreeningService at prebuild, so the managed workflow is kept and the native code is declarative. SMS filtering is the iOS Message Filter, and on Android the call screening is the CallScreeningService.
 
+We start the runtime with the app, its out-of-process native extensions, and the API it talks to.
+
 ```mermaid
-flowchart TD
-  app[Expo app, React Native and Expo Router] --> plugins[Config plugins in app.config]
-  plugins --> native[Native extensions, iOS Swift and Android Kotlin]
-  app --> api[NestJS API, HTTP Lambda]
-  api --> queue[SQS report-intake queue plus DLQ]
-  queue --> worker[Worker Lambda, idempotent consumer]
-  worker --> classifier[Classifier, LLM with heuristic fallback]
-  worker --> pg[(Neon Postgres)]
-  worker --> search[(OpenSearch, optional)]
-  worker --> push[Expo push, APNs and FCM]
+flowchart LR
+  App["Expo app<br/>- React Native and Expo Router<br/>- managed workflow<br/>- config plugins in app.config"]
+  Native["Native call/SMS extensions<br/>- iOS Call Directory + Message Filter (Swift)<br/>- Android CallScreeningService (Kotlin)<br/>- out of process"]
+  HTTP["HTTP Lambda (NestJS)<br/>- accepts reports fast"]
+  App -->|"config plugins at prebuild"| Native
+  App --> HTTP
 ```
 
 ### 3) The API takes reports asynchronously
 
-The HTTP Lambda accepts a report and returns fast, handing the slow work to a queue. A worker Lambda drains it idempotently, classifies, persists, and pushes, with a dead-letter queue catching repeated failures. The NestjsApi construct wires this once for every app.
+The HTTP Lambda accepts a report and returns fast, handing the slow work to a queue. A worker Lambda drains it idempotently, classifies, and (per app) persists and pushes, with a dead-letter queue catching repeated failures. The NestjsApi construct wires this once for every app.
+
+We add the async backend the API hands off to. That completes the runtime.
 
 ```mermaid
-flowchart TD
-  device[Mobile device, binary from EAS] --> apigw[API Gateway HTTP API]
-  apigw --> http[HTTP Lambda, arm64]
-  http --> q[SQS reports queue]
-  q --> wkr[Worker Lambda, arm64]
-  q -->|repeated failure| dlq[(Dead-letter queue, maxReceive 5)]
-  wkr --> neon[(Neon Postgres)]
-  wkr -.optional.-> os[(OpenSearch)]
+flowchart LR
+  App["Expo app<br/>- React Native and Expo Router<br/>- config plugins in app.config"]
+  Native["Native call/SMS extensions<br/>- out of process"]
+  APIGW["API Gateway<br/>- HTTP API"]
+  HTTP["HTTP Lambda (NestJS)<br/>- arm64<br/>- accepts and returns fast"]
+  SQS(["SQS queue"])
+  DLQ[("Dead-letter queue<br/>maxReceive 5")]
+  Worker["Worker Lambda<br/>- idempotent<br/>- drains the queue<br/>- classifies<br/>- persists and pushes (per app)"]
+  Classifier["Classifier<br/>- LLM with heuristic fallback"]
+  Neon[("Neon Postgres")]
+  OS[("OpenSearch (optional)")]
+  Push{"Expo Push"}
+  App -->|"config plugins at prebuild"| Native
+  App --> APIGW
+  APIGW --> HTTP
+  HTTP -->|enqueue| SQS
+  SQS --> Worker
+  SQS -->|"repeated failure"| DLQ
+  Worker --> Classifier
+  Worker -->|"persist (per app)"| Neon
+  Worker -.optional.-> OS
+  Worker -->|"push (per app)"| Push
+  Push -->|"Expo push"| App
 ```
 
 ### 4) The gate proves every requirement, code and native alike
@@ -252,6 +274,38 @@ Build a release APK with the JavaScript bundled in, and drive it with Maestro on
 
 ---
 
+## The complete design
+
+Pulling the deep dives together, here is the production system a mobile-platform app ships into, and the pipeline that puts it there.
+
+```mermaid
+flowchart LR
+  Agent["AI coding agent"]
+  GH["GitHub Actions<br/>- gate, security<br/>- CDK deploy over OIDC"]
+  EAS["EAS<br/>- build, submit, OTA"]
+  App["Expo app<br/>- managed workflow<br/>- config plugins at prebuild"]
+  Native["Native call/SMS extensions<br/>- iOS Call Directory + Message Filter<br/>- Android CallScreeningService<br/>- out of process"]
+  HTTP["HTTP Lambda (NestJS)<br/>- accepts reports fast"]
+  Worker["Worker Lambda<br/>- idempotent<br/>- classifies<br/>- persists and pushes (per app)"]
+  SQS(["SQS queue"])
+  DLQ[("Dead-letter queue<br/>maxReceive 5")]
+  Neon[("Neon Postgres")]
+  OS[("OpenSearch (optional)")]
+  Push{"Expo Push"}
+  Agent --> GH
+  GH -->|"deploy API over OIDC"| HTTP
+  EAS -->|"ship binary"| App
+  App -->|"config plugins at prebuild"| Native
+  App --> HTTP
+  HTTP -->|enqueue| SQS
+  SQS --> Worker
+  SQS -->|"repeated failure"| DLQ
+  Worker -->|"persist (per app)"| Neon
+  Worker -.optional.-> OS
+  Worker -->|"push (per app)"| Push
+  Push -->|"Expo push"| App
+```
+
 ## Tech stack
 
 | Layer | Tech |
@@ -270,7 +324,7 @@ Build a release APK with the JavaScript bundled in, and drive it with Maestro on
 | App build | EAS Build, Submit, and Update |
 | API deploy | GitHub Actions and CDK over OIDC, no stored keys |
 | Testing | spec-test over Vitest, jest-expo, Maestro, and signed real-device artifacts |
-| Tooling | ESLint 9, Prettier, Commitlint, Node 20+ |
+| Tooling | ESLint 9, Prettier, Commitlint, Node 22+ |
 
 ## License
 
