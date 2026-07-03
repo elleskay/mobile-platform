@@ -43,7 +43,7 @@ npm run setup
 ```
 
 Prerequisites: `gh` (authenticated), `aws` (credentials allowed to create an
-IAM role + OIDC provider and to bootstrap CDK), Node 20+. Optional: `neonctl`
+IAM role + OIDC provider and to bootstrap CDK), Node 22+. Optional: `neonctl`
 to auto-provision the database. The AWS/GitHub half is fully automated.
 
 It sets the **secrets** `AWS_DEPLOY_ROLE_ARN`, `DATABASE_URL`, `JWT_SECRET`
@@ -76,6 +76,7 @@ npx cdk deploy -c repo=<owner>/my-app   # copy the DeployRoleArn output
 ```
 
 Then set the secrets/variables above manually (`gh secret set` / `gh variable set`).
+
 </details>
 
 ## 6. Push

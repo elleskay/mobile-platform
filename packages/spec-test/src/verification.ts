@@ -108,9 +108,7 @@ function isNativeLevel(req: Requirement): boolean {
 
 /** Expected artifact path for a requirement + platform. */
 function artifactPath(dir: string, id: string, platform: string): string {
-  return platform === "_"
-    ? join(dir, `${id}.yml`)
-    : join(dir, `${id}.${platform}.yml`);
+  return platform === "_" ? join(dir, `${id}.yml`) : join(dir, `${id}.${platform}.yml`);
 }
 
 /**
@@ -175,9 +173,8 @@ function readArtifact(path: string): ArtifactStatus {
 function loadBaseline(path: string | undefined): Record<string, string> | undefined {
   if (!path || !existsSync(path)) return undefined;
   try {
-    const doc = parseYaml(readFileSync(path, "utf8")) as unknown;
-    const parsed = OsBaseline.parse(doc);
-    return parsed as Record<string, string> | undefined;
+    const doc: unknown = parseYaml(readFileSync(path, "utf8"));
+    return OsBaseline.parse(doc);
   } catch {
     return undefined;
   }
@@ -188,10 +185,7 @@ function loadBaseline(path: string | undefined): Record<string, string> | undefi
  * verification artifact(s). Pure of the rest of the gate; the result is folded
  * into the coverage report by report.ts.
  */
-export function evaluateNativeRequirements(
-  spec: SpecFile,
-  opts: EvaluateOptions,
-): NativeReport {
+export function evaluateNativeRequirements(spec: SpecFile, opts: EvaluateOptions): NativeReport {
   const now = opts.now ?? new Date();
   const maxAgeDays = opts.maxAgeDays ?? 90;
   const baseline = loadBaseline(opts.osBaselinePath);
@@ -215,7 +209,11 @@ export function evaluateNativeRequirements(
           if (sig !== expected) {
             status = { state: "tampered", artifact, expected };
           } else {
-            const reasons = staleReasons(artifact, { appVersion: opts.appVersion, now, maxAgeDays }, baseline);
+            const reasons = staleReasons(
+              artifact,
+              { appVersion: opts.appVersion, now, maxAgeDays },
+              baseline,
+            );
             if (reasons.length > 0) status = { state: "stale", artifact, reasons };
           }
         }

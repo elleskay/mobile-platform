@@ -19,8 +19,7 @@ export const test = base.extend<{ specCoverage: void }>({
       const m = SPEC_ID_RE.exec(testInfo.title);
       if (!m) return;
       const id = m[1] as string;
-      const status: "passed" | "failed" =
-        testInfo.status === "passed" ? "passed" : "failed";
+      const status: "passed" | "failed" = testInfo.status === "passed" ? "passed" : "failed";
       recordCoverage({
         id,
         status,

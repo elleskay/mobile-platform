@@ -1,10 +1,4 @@
-import {
-  appendFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  unlinkSync,
-} from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync } from "node:fs";
 import { dirname } from "node:path";
 
 export interface CoverageEntry {
@@ -16,8 +10,7 @@ export interface CoverageEntry {
   timestamp: string;
 }
 
-const DEFAULT_PATH =
-  process.env.SPEC_COVERAGE_FILE ?? ".spec-coverage/results.jsonl";
+const DEFAULT_PATH = process.env.SPEC_COVERAGE_FILE ?? ".spec-coverage/results.jsonl";
 
 export function getCoveragePath(): string {
   return DEFAULT_PATH;

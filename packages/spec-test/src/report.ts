@@ -134,9 +134,7 @@ export function renderMarkdown(spec: SpecFile, report: CoverageReport): string {
     lines.push("| ID | Title | Category | Severity |");
     lines.push("|---|---|---|---|");
     for (const req of report.uncoveredRequirements) {
-      lines.push(
-        `| \`${req.id}\` | ${req.title} | ${req.category} | ${req.severity} |`,
-      );
+      lines.push(`| \`${req.id}\` | ${req.title} | ${req.category} | ${req.severity} |`);
     }
     lines.push("");
   }
@@ -184,9 +182,7 @@ export function renderMarkdown(spec: SpecFile, report: CoverageReport): string {
         continue;
       }
       for (const r of results) {
-        lines.push(
-          `| \`${req.id}\` | ${req.title} | ${r.platform} | ${describeNativeStatus(r)} |`,
-        );
+        lines.push(`| \`${req.id}\` | ${req.title} | ${r.platform} | ${describeNativeStatus(r)} |`);
       }
     }
     lines.push("");

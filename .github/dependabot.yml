@@ -32,8 +32,7 @@ updates:
       # react-native is 0.x: a "minor" bump (0.74 -> 0.85) is breaking. Keep it on
       # the Expo-aligned 0.74.x line; only patches flow automatically.
       - dependency-name: "react-native"
-        update-types:
-          ["version-update:semver-major", "version-update:semver-minor"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # NestJS packages must share a major; upgrade the whole set deliberately.
       - dependency-name: "@nestjs/*"
         update-types: ["version-update:semver-major"]

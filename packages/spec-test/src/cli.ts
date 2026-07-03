@@ -140,12 +140,11 @@ function main(): void {
         results.length === 0
           ? "missing artifact"
           : results
-              .map((r) => {
-                const s = r.status.state;
-                return s === "stale"
-                  ? `${r.platform}: stale (${r.status.state === "stale" ? r.status.reasons.join(", ") : ""})`
-                  : `${r.platform}: ${s}`;
-              })
+              .map((r) =>
+                r.status.state === "stale"
+                  ? `${r.platform}: stale (${r.status.reasons.join(", ")})`
+                  : `${r.platform}: ${r.status.state}`,
+              )
               .join("; ");
       console.log(`    - ${req.id}: ${detail}`);
     }

@@ -44,7 +44,10 @@ export function parseJunit(xml: string): JunitCase[] {
 }
 
 /** Parse a JUnit report and record coverage for every [ID]-named flow. */
-export function ingestJunit(path: string, category = "functional"): { recorded: number; skipped: number } {
+export function ingestJunit(
+  path: string,
+  category = "functional",
+): { recorded: number; skipped: number } {
   const xml = readFileSync(path, "utf8");
   const cases = parseJunit(xml);
   let recorded = 0;
@@ -83,7 +86,9 @@ function main(): void {
     process.exit(2);
   }
   const { recorded, skipped } = ingestJunit(resolve(report), category);
-  console.log(`spec-maestro: recorded ${recorded} flow(s), skipped ${skipped} without a [ID] prefix`);
+  console.log(
+    `spec-maestro: recorded ${recorded} flow(s), skipped ${skipped} without a [ID] prefix`,
+  );
 }
 
 // Only run as CLI, not when imported for the parse helpers.

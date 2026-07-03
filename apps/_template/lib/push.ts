@@ -5,8 +5,7 @@ import Constants from "expo-constants";
 // push service; the API sends to the Expo push endpoint with the token below.
 export async function registerForPush(): Promise<string | null> {
   const projectId =
-    Constants.expoConfig?.extra?.eas?.projectId ??
-    process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+    Constants.expoConfig?.extra?.eas?.projectId ?? process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
   if (!projectId) {
     // Not configured. Nothing to register; callers treat null as "push off".
     return null;

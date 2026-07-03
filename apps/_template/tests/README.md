@@ -4,13 +4,13 @@ Spec-driven test scaffolding. Copy into your app, then wire the `test:spec` gate
 
 ## Layers (ADR 0001)
 
-| Layer | Spec `verify` | Runner | Import / location | Records as |
-|---|---|---|---|---|
-| Unit | `unit` | jest-expo | `tests/unit/*.spec.ts` | `data` |
-| Component | `component` | jest-expo + React Native Testing Library | `tests/component/*.spec.tsx` | `ui` |
-| E2E journey | `e2e` | Maestro | `.maestro/*.yaml` | `functional` |
-| Native (call/SMS) | `native` | signed artifact | `verification/` | n/a (artifact) |
-| Manual | `manual` | signed artifact | `verification/` | n/a (artifact) |
+| Layer             | Spec `verify` | Runner                                   | Import / location            | Records as     |
+| ----------------- | ------------- | ---------------------------------------- | ---------------------------- | -------------- |
+| Unit              | `unit`        | jest-expo                                | `tests/unit/*.spec.ts`       | `data`         |
+| Component         | `component`   | jest-expo + React Native Testing Library | `tests/component/*.spec.tsx` | `ui`           |
+| E2E journey       | `e2e`         | Maestro                                  | `.maestro/*.yaml`            | `functional`   |
+| Native (call/SMS) | `native`      | signed artifact                          | `verification/`              | n/a (artifact) |
+| Manual            | `manual`      | signed artifact                          | `verification/`              | n/a (artifact) |
 
 The app standardizes on **Jest (jest-expo)** for unit + component so one recorder
 covers both with proper RN module mocking. **Maestro** runs the e2e journeys
@@ -36,7 +36,7 @@ requirement is uncovered, a covering test fails, a category mismatches, or a
   "scripts": {
     "test:unit": "jest",
     "test:e2e": "maestro test .maestro --format junit --output maestro.xml",
-    "test:spec": "rimraf .spec-coverage && npm run test:unit && npm run test:e2e && spec-maestro --report maestro.xml && spec-coverage --spec specs/<app>.yml --verification-dir verification --app-version $npm_package_version"
+    "test:spec": "rimraf .spec-coverage && npm run test:unit && npm run test:e2e && spec-maestro --report maestro.xml && spec-coverage --spec specs/<app>.yml --verification-dir verification --app-version $npm_package_version",
   },
   "devDependencies": {
     "jest": "^29",
@@ -44,8 +44,8 @@ requirement is uncovered, a covering test fails, a category mismatches, or a
     "@testing-library/react-native": "^12.5.0",
     "react-test-renderer": "18.2.0",
     "rimraf": "^6.0.0",
-    "@platform/spec-test": "*"
-  }
+    "@platform/spec-test": "*",
+  },
 }
 ```
 
@@ -59,7 +59,10 @@ Wire the rule into the app's flat config:
 ```js
 import { eslintPlugin as specTest } from "@platform/spec-test";
 export default [
-  { files: ["tests/**/*.{ts,tsx}"], plugins: { "spec-test": specTest },
-    rules: { "spec-test/require-expect-in-spec-test": "error" } },
+  {
+    files: ["tests/**/*.{ts,tsx}"],
+    plugins: { "spec-test": specTest },
+    rules: { "spec-test/require-expect-in-spec-test": "error" },
+  },
 ];
 ```

@@ -51,7 +51,12 @@ export class ClassifierService {
     const hasLink = /https?:\/\/|\bwww\./.test(t);
     const lure = /(verify|urgent|prize|gift|otp|password|bank|click)/.test(t);
     if (hasLink && lure)
-      return { verdict: "scam", score: 0.9, reason: "Link plus urgency lure.", source: "heuristic" };
+      return {
+        verdict: "scam",
+        score: 0.9,
+        reason: "Link plus urgency lure.",
+        source: "heuristic",
+      };
     if (hasLink || lure)
       return {
         verdict: "suspicious",

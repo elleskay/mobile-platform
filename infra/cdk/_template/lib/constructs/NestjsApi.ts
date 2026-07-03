@@ -23,13 +23,6 @@ export interface NestjsApiProps {
   readonly servicePath: string;
 
   /**
-   * Monorepo root for esbuild bundling (where the root package-lock.json lives).
-   * Defaults to two levels above `servicePath` (the `services/<name>` layout).
-   * Override if your service sits elsewhere.
-   */
-  readonly monorepoRoot?: string;
-
-  /**
    * Environment variables set on both Lambdas. Include DATABASE_URL, JWT_SECRET,
    * and any classifier/observability keys. REPORTS_QUEUE_URL and
    * OPENSEARCH_ENDPOINT are injected by the construct, do not set them here.
@@ -148,7 +141,7 @@ export class NestjsApi extends Construct {
 
     // Prisma (optional): if the service uses Prisma, the generated client + the
     // query-engine binary must live in the bundle. The prod install above strips
-    // scripts, so the postinstall `prisma generate` never ran — generate it here.
+    // scripts, so the postinstall `prisma generate` never ran; generate it here.
     // No-op for services without a schema. Requires the generator to target the
     // Lambda arch in prisma/schema.prisma:
     //   binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]   // arm64 / AL2023 / OpenSSL 3
@@ -157,7 +150,7 @@ export class NestjsApi extends Construct {
       fs.cpSync(prismaDir, path.join(stage, "prisma"), { recursive: true });
       // Install the prisma CLI INTO the stage so `prisma generate` resolves the
       // stage's own node_modules/@prisma/client (a bare `npx prisma` runs from the
-      // npx cache and can't see it). Pin to 6 — Prisma 7 moved the datasource url
+      // npx cache and can't see it). Pin to 6: Prisma 7 moved the datasource url
       // out of schema and breaks `migrate`/`generate` for this layout.
       execSync("npm install prisma@6 --no-save --no-audit --no-fund --no-package-lock", {
         cwd: stage,
@@ -166,7 +159,7 @@ export class NestjsApi extends Construct {
       execSync("npx prisma generate", { cwd: stage, stdio: "inherit" });
       // Slim to stay under Lambda's 250 MB unzipped limit: the prisma CLI +
       // @prisma/engines are only needed during generate, and only the linux-arm64
-      // query engine is needed at runtime — drop everything else.
+      // query engine is needed at runtime, so drop everything else.
       for (const rel of ["node_modules/prisma", "node_modules/@prisma/engines"]) {
         fs.rmSync(path.join(stage, rel), { recursive: true, force: true });
       }
@@ -183,7 +176,7 @@ export class NestjsApi extends Construct {
 
     // Slim the bundle: the AWS SDK v3 and its @smithy core each ship BOTH a CJS
     // and an ESM build. `nest build` emits CommonJS, so node loads dist-cjs and
-    // the dist-es copies are dead weight — dropping them reclaims ~30-40 MB and
+    // the dist-es copies are dead weight; dropping them reclaims ~30-40 MB and
     // keeps headroom under Lambda's 250 MB unzipped limit as more @aws-sdk
     // clients (bedrock/polly/transcribe/s3/sqs) are added.
     for (const scope of ["@aws-sdk", "@smithy"]) {

@@ -4,6 +4,6 @@
 
 ## Uncovered (1)
 
-| ID | Title | Category | Severity |
-|---|---|---|---|
-| `EX-UI-001` | Dropdown renders combobox with provided options | ui | high |
+| ID          | Title                                           | Category | Severity |
+| ----------- | ----------------------------------------------- | -------- | -------- |
+| `EX-UI-001` | Dropdown renders combobox with provided options | ui       | high     |

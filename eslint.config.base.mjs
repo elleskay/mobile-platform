@@ -17,6 +17,12 @@ export default tseslint.config(
     },
   },
   {
+    // Config and script files (eslint.config.mjs, babel.config.js, plugins/*.js)
+    // are not part of any tsconfig, so type-aware rules cannot run on them.
+    files: ["**/*.{js,mjs,cjs}"],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
     ignores: ["dist/**", "build/**", ".next/**", "cdk.out/**", "node_modules/**"],
   },
 );

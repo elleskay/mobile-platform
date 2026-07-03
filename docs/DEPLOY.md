@@ -12,8 +12,11 @@ On push to `main` (or manual dispatch):
 2. OIDC-assumes the deploy role. No stored AWS keys.
 3. Applies DB migrations if `services/api/db/migrate.ts` exists.
 4. Builds the API (`nest build`).
-5. `cdk deploy --all`. The `NestjsApi` construct bundles `src/lambda.ts` and
-   `src/reports/reports.consumer.ts` with esbuild.
+5. `cdk deploy --all`. The `NestjsApi` construct stages the `nest build` output
+   plus production `node_modules` as the Lambda asset (deliberately no esbuild:
+   bundling drops the decorator metadata NestJS DI needs). The HTTP handler is
+   `lambda.handler`; the SQS worker is `worker.handler` (`src/worker.ts`, a root
+   re-export of `src/reports/reports.consumer.ts`).
 6. Extracts the `ApiUrl` output and runs `scripts/verify-deploy.sh`.
 
 ## App (`.github/workflows/mobile-build.yml`)

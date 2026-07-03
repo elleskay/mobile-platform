@@ -24,20 +24,14 @@ export function parseSpec(path: string): ParseResult {
   try {
     raw = readFileSync(path, "utf8");
   } catch (err) {
-    throw new SpecParseError(
-      `Failed to read spec file: ${(err as Error).message}`,
-      path,
-    );
+    throw new SpecParseError(`Failed to read spec file: ${(err as Error).message}`, path);
   }
 
   let doc: unknown;
   try {
     doc = parseYaml(raw);
   } catch (err) {
-    throw new SpecParseError(
-      `Invalid YAML in spec file: ${(err as Error).message}`,
-      path,
-    );
+    throw new SpecParseError(`Invalid YAML in spec file: ${(err as Error).message}`, path);
   }
 
   const result = SpecFile.safeParse(doc);

@@ -1,4 +1,4 @@
-# apps/_template
+# apps/\_template
 
 Reference overlay for a real Expo app. These files are not a runnable app; copy what you need into `apps/app/` after scaffolding with `expo prebuild`.
 

@@ -1,11 +1,5 @@
 import type { Rule } from "eslint";
-import type {
-  Node,
-  CallExpression,
-  FunctionExpression,
-  ArrowFunctionExpression,
-  Literal,
-} from "estree";
+import type { Node, CallExpression, FunctionExpression, ArrowFunctionExpression } from "estree";
 
 interface NamedCallee {
   name: string;
@@ -17,8 +11,7 @@ function calleeName(node: CallExpression): string | null {
   const c = node.callee as Node & Partial<NamedCallee>;
   if (c.type === "Identifier") return (c as unknown as NamedCallee).name;
   if (c.type === "MemberExpression") {
-    const prop = (c as unknown as { property: Node & Partial<NamedCallee> })
-      .property;
+    const prop = (c as unknown as { property: Node & Partial<NamedCallee> }).property;
     if (prop.type === "Identifier") return prop.name ?? null;
   }
   return null;
@@ -26,11 +19,14 @@ function calleeName(node: CallExpression): string | null {
 
 function getStringLiteral(node: Node | undefined): string | null {
   if (!node) return null;
-  if (node.type === "Literal" && typeof (node as Literal).value === "string") {
-    return (node as Literal).value as string;
+  if (node.type === "Literal" && typeof node.value === "string") {
+    return node.value;
   }
   if (node.type === "TemplateLiteral") {
-    const tl = node as unknown as { quasis: Array<{ value: { cooked: string } }>; expressions: unknown[] };
+    const tl = node as unknown as {
+      quasis: Array<{ value: { cooked: string } }>;
+      expressions: unknown[];
+    };
     if (tl.expressions.length === 0 && tl.quasis.length === 1) {
       return tl.quasis[0]?.value.cooked ?? null;
     }
@@ -42,19 +38,14 @@ function findBodyFunction(
   node: CallExpression,
 ): FunctionExpression | ArrowFunctionExpression | null {
   for (const arg of node.arguments) {
-    if (
-      arg.type === "FunctionExpression" ||
-      arg.type === "ArrowFunctionExpression"
-    ) {
-      return arg as FunctionExpression | ArrowFunctionExpression;
+    if (arg.type === "FunctionExpression" || arg.type === "ArrowFunctionExpression") {
+      return arg;
     }
   }
   return null;
 }
 
-function bodyHasExpect(
-  body: FunctionExpression | ArrowFunctionExpression,
-): boolean {
+function bodyHasExpect(body: FunctionExpression | ArrowFunctionExpression): boolean {
   let found = false;
   const visit = (n: unknown): void => {
     if (found || !n || typeof n !== "object") return;
@@ -93,8 +84,7 @@ export const requireExpectInSpecTest: Rule.RuleModule = {
     messages: {
       missingExpect:
         "test('[{{id}}] ...') must contain at least one expect() call. A spec requirement that records no assertion does not verify behavior.",
-      missingBody:
-        "test('[{{id}}] ...') must have a function body.",
+      missingBody: "test('[{{id}}] ...') must have a function body.",
     },
   },
   create(context) {
@@ -102,7 +92,7 @@ export const requireExpectInSpecTest: Rule.RuleModule = {
       CallExpression(node: CallExpression) {
         const callee = calleeName(node);
         if (callee !== "test" && callee !== "it") return;
-        const title = getStringLiteral(node.arguments[0] as Node | undefined);
+        const title = getStringLiteral(node.arguments[0]);
         if (!title) return;
         const m = SPEC_ID_RE.exec(title);
         if (!m) return;

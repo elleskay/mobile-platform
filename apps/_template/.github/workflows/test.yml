@@ -15,6 +15,9 @@ on:
       - "**/*.md"
       - "docs/**"
 
+permissions:
+  contents: read
+
 # A second push to an open PR cancels the in-flight run instead of spinning up a
 # parallel emulator job alongside the stale one.
 concurrency:
@@ -24,11 +27,12 @@ concurrency:
 jobs:
   unit-component:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm run -w @platform/spec-test build
@@ -42,8 +46,9 @@ jobs:
 
   attestations:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0 # need history to find the commit that last touched each artifact
       # Skips while verification/allowed-signers is empty and no artifact is
@@ -57,11 +62,12 @@ jobs:
   e2e-maestro-android:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - uses: actions/setup-java@v4
         with:

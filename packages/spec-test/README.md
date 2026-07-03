@@ -24,13 +24,15 @@ name: "[EX-CHECK-001] check shows a verdict"
 
 Register the recorder once per runner:
 
-| Runner | Import | Setup |
-|---|---|---|
-| Vitest (API) | `@platform/spec-test/vitest` | `setupFiles` -> `setupSpecCoverage()` |
-| jest-expo (app) | `@platform/spec-test/jest` | `setupFilesAfterEnv` -> `setupSpecCoverage({ category })` |
-| Detox (legacy) | `@platform/spec-test/detox` | `setupFilesAfterEnv` -> `setupSpecCoverage()` |
-| Maestro (app e2e) | `@platform/spec-test/maestro` | `spec-maestro --report maestro.xml` after the run |
-| Playwright (web admin) | `@platform/spec-test/playwright` | `test`/`expect` re-exports |
+| Runner                 | Import                           | Setup                                                     |
+| ---------------------- | -------------------------------- | --------------------------------------------------------- |
+| Vitest (API)           | `@platform/spec-test/vitest`     | `setupFiles` -> `setupSpecCoverage()`                     |
+| jest-expo (app)        | `@platform/spec-test/jest`       | `setupFilesAfterEnv` -> `setupSpecCoverage({ category })` |
+| Maestro (app e2e)      | `@platform/spec-test/maestro`    | `spec-maestro --report maestro.xml` after the run         |
+| Playwright (web admin) | `@platform/spec-test/playwright` | `test`/`expect` re-exports                                |
+
+The jest recorder works under any Jest-based runner (jest-expo, or Detox if an
+app ever adopts it); there is no separate Detox entry point.
 
 ## CLIs
 
@@ -71,4 +73,4 @@ signed artifact). It does not verify the spec is correct or complete:
 
 The platform copies, it does not import a published version. Each app pins its own
 snapshot from `packages/` so breaking changes never propagate without explicit
-action. See the platform `README.md` "Opinions".
+action. See the platform `README.md` ("Planning the Approach").
