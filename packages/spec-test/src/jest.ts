@@ -42,10 +42,6 @@ export function setupSpecCoverage(opts: JestSpecOptions = {}): void {
 }
 
 /** Explicit recorder for try/catch around flaky native interactions. */
-export function recordSpec(
-  id: string,
-  status: "passed" | "failed",
-  category?: string,
-): void {
+export function recordSpec(id: string, status: "passed" | "failed", category?: string): void {
   recordCoverage({ id, status, category });
 }

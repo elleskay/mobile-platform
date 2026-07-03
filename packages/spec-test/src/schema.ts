@@ -1,19 +1,8 @@
 import { z } from "zod";
 
-export const RequirementCategory = z.enum([
-  "functional",
-  "ui",
-  "security",
-  "data",
-  "a11y",
-]);
+export const RequirementCategory = z.enum(["functional", "ui", "security", "data", "a11y"]);
 
-export const RequirementSeverity = z.enum([
-  "critical",
-  "high",
-  "medium",
-  "low",
-]);
+export const RequirementSeverity = z.enum(["critical", "high", "medium", "low"]);
 
 // The verification level that must prove a requirement. Replaces the implicit
 // "category equals layer" heuristic with an explicit, auditable statement.

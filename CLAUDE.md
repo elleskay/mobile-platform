@@ -46,7 +46,9 @@ infra/
 scripts/verify-deploy.sh             # Post-deploy smoke test
 
 .github/workflows/
-├── ci.yml                           # typecheck, lint, expo-doctor, nest build, cdk synth
+├── ci.yml                           # typecheck/lint/test (all workspaces), format check,
+                                     # expo doctor + prebuild + web export, nest build,
+                                     # cdk synth, spec-test gate self-test, attestations
 ├── security.yml                     # CodeQL, gitleaks, npm audit
 ├── mobile-build.yml                 # EAS build + submit + OTA update
 ├── deploy-api.yml                   # OIDC, build, CDK deploy, smoke test
@@ -84,7 +86,7 @@ Only the cross-cutting platform layer:
 - Expo (React Native) + Expo Router + TypeScript strict
 - Native modules via config plugins: Swift (iOS) + Kotlin (Android)
 - NestJS (App-module pattern) + TypeScript strict, on AWS Lambda + API Gateway
-- Node 20+
+- Node 22+ (root `engines`, CI, and the Lambda runtime all pin 22)
 - Postgres (Neon for serverless connection pooling)
 - AWS SQS for report intake, OpenSearch for clustering similar reports
 - AWS CDK for IaC
@@ -127,10 +129,10 @@ All documented in `docs/DEPLOY.md` and `docs/MOBILE.md`. Don't undo the fixes:
 8. **CDK env vars are baked at synth time**, not deploy time.
 9. **OTA updates (EAS Update) only ship JS/asset changes.** Anything touching native code (new permissions, new extension) needs a full store build, not an OTA push.
 10. **Refactoring resources into a construct changes logical IDs.** Use logical-id overrides for in-place upgrades.
-11. **Lambda handlers must be a root-level file with no dot in the name.** The nodejs22.x runtime splits the handler string on the *first* dot, so a handler like `reports/reports.consumer.handler` parses to module `reports/reports` (a bare ESM specifier) and init fails with `Cannot find module 'reports'`. The HTTP entry is `lambda.ts` (`lambda.handler`); the SQS worker is `worker.ts` (`worker.handler`), a thin root re-export of `reports/reports.consumer`. Never point a handler at a nested file or a filename containing a dot.
-12. **Android e2e in CI must build a *release* APK, not debug.** A debug build loads its JS bundle from a Metro dev server, which does not run on a CI emulator, so the app comes up to a red error screen and Maestro finds no UI (every flow fails with "Element not found"). Build `assembleRelease` (the bundle is embedded); Expo prebuild defaults the release signingConfig to the debug keystore, so it still installs on the emulator. Set `EXPO_PUBLIC_API_URL=http://10.0.2.2:3000` (the emulator alias for the host loopback) and run the API on the host so the report journey is real, not stubbed. The e2e scaffold in `apps/_template/.github/workflows/test.yml` already does this. Relatedly, guard the first `tapOn` in each Maestro flow with an `extendedWaitUntil` on a visible element: a cold release-APK launch can outlast `tapOn`'s default retry window and flake with "Element not found" on the first interaction.
-13. **An ESM-only dependency `require()`d from the worker/lambda bundle crashes init.** `nest build` emits **CommonJS**, so any dependency that ships ESM-only (no CJS build, or `"type": "module"`) blows up at load with `ERR_REQUIRE_ESM` — the Lambda dies on init before your handler runs, and SQS messages silently pile into the DLQ. Hit in the wild with `expo-server-sdk`. Fixes, in order of preference: (a) call the service's HTTP API directly with the runtime's global `fetch` and drop the dependency; (b) `const { X } = await import("pkg")` (dynamic import works from CJS); (c) pin to an older CJS release. Prefer (a) for the worker — fewer deps in the bundle. This is the same ESM trap as gotcha #11, one layer down (the *dependency* is ESM, not the handler path).
-14. **Prisma on Lambda needs the arm64 engine in the bundle, and the construct generates it.** If a service uses Prisma, set `generator.binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]` in `schema.prisma` (the Lambda is ARM64 / AL2023 / OpenSSL 3 — `native` alone or an x64 target 500s with "@prisma/client did not initialize"). `NestjsApi` detects `prisma/schema.prisma`, copies it into the bundle, installs the Prisma 6 CLI *into the stage* (a bare `npx prisma` can't see the staged client), runs `prisma generate`, then strips the CLI + `@prisma/engines` + non-arm64 engine binaries to stay under Lambda's 250 MB unzipped limit. Pin **Prisma 6** — Prisma 7 moved the datasource `url` out of `schema.prisma` and breaks this layout. For migrations, derive the direct (non-pooled) URL from the pooled `DATABASE_URL` in a `db/migrate.ts` and run `prisma migrate deploy` in CI before `cdk deploy`. The block is a no-op for services without a schema.
+11. **Lambda handlers must be a root-level file with no dot in the name.** The nodejs22.x runtime splits the handler string on the _first_ dot, so a handler like `reports/reports.consumer.handler` parses to module `reports/reports` (a bare ESM specifier) and init fails with `Cannot find module 'reports'`. The HTTP entry is `lambda.ts` (`lambda.handler`); the SQS worker is `worker.ts` (`worker.handler`), a thin root re-export of `reports/reports.consumer`. Never point a handler at a nested file or a filename containing a dot.
+12. **Android e2e in CI must build a _release_ APK, not debug.** A debug build loads its JS bundle from a Metro dev server, which does not run on a CI emulator, so the app comes up to a red error screen and Maestro finds no UI (every flow fails with "Element not found"). Build `assembleRelease` (the bundle is embedded); Expo prebuild defaults the release signingConfig to the debug keystore, so it still installs on the emulator. Set `EXPO_PUBLIC_API_URL=http://10.0.2.2:3000` (the emulator alias for the host loopback) and run the API on the host so the report journey is real, not stubbed. The e2e scaffold in `apps/_template/.github/workflows/test.yml` already does this. Relatedly, guard the first `tapOn` in each Maestro flow with an `extendedWaitUntil` on a visible element: a cold release-APK launch can outlast `tapOn`'s default retry window and flake with "Element not found" on the first interaction.
+13. **An ESM-only dependency `require()`d from the worker/lambda bundle crashes init.** `nest build` emits **CommonJS**, so any dependency that ships ESM-only (no CJS build, or `"type": "module"`) blows up at load with `ERR_REQUIRE_ESM`: the Lambda dies on init before your handler runs, and SQS messages silently pile into the DLQ. Hit in the wild with `expo-server-sdk`. Fixes, in order of preference: (a) call the service's HTTP API directly with the runtime's global `fetch` and drop the dependency; (b) `const { X } = await import("pkg")` (dynamic import works from CJS); (c) pin to an older CJS release. Prefer (a) for the worker (fewer deps in the bundle). This is the same ESM trap as gotcha #11, one layer down (the _dependency_ is ESM, not the handler path).
+14. **Prisma on Lambda needs the arm64 engine in the bundle, and the construct generates it.** If a service uses Prisma, set `generator.binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]` in `schema.prisma` (the Lambda is ARM64 / AL2023 / OpenSSL 3; `native` alone or an x64 target 500s with "@prisma/client did not initialize"). `NestjsApi` detects `prisma/schema.prisma`, copies it into the bundle, installs the Prisma 6 CLI _into the stage_ (a bare `npx prisma` can't see the staged client), runs `prisma generate`, then strips the CLI + `@prisma/engines` + non-arm64 engine binaries to stay under Lambda's 250 MB unzipped limit. Pin **Prisma 6**: Prisma 7 moved the datasource `url` out of `schema.prisma` and breaks this layout. For migrations, derive the direct (non-pooled) URL from the pooled `DATABASE_URL` in a `db/migrate.ts` and run `prisma migrate deploy` in CI before `cdk deploy`. The block is a no-op for services without a schema.
 
 ## When adding a new app to a cloned repo
 
@@ -157,22 +159,22 @@ Every app on this platform is built from a spec and tested against that spec. Th
 **When the user gives you a brief for a new feature inside an existing app:**
 
 1. Add the new requirements to the app's `specs/<app>.yml` first. Do not extend code without a spec entry to point at.
-2. Write `specTest()` and implementation in the same turn, as above.
+2. Write the `[ID]`-named test and implementation in the same turn, as above.
 3. **If the feature is user-facing**, write at least one journey-level e2e that traverses the full path (e.g. user-reports-scam -> API-ingests -> classifier-flags -> push-notifies), not only isolated component-level assertions. This catches the decomposed-journey trap where individual pieces are green but the chain is broken.
 4. Re-run `test:spec`. Ship when green.
 
 **When the user gives you a brief for a bug fix:**
 
 1. If the bug points to a missing or wrong requirement in the spec, fix the spec first (or add the missing requirement).
-2. Write a failing `specTest()` that captures the bug. Confirm it fails on current code.
-3. Fix the code. Confirm `specTest()` passes.
+2. Write a failing `[ID]`-named test that captures the bug. Confirm it fails on current code.
+3. Fix the code. Confirm the test passes.
 4. Coverage gate stays green.
 
 **What this prevents:**
 
 - Shipping an app and only finding out at verification time that flows are broken. The gate refuses to deploy if any requirement is uncovered or its test is red.
 - "I'll write tests later." There is no later. Tests and code ship together or not at all.
-- Test-as-checkbox without assertions. The ESLint rule fails lint on any `specTest()` body that contains zero `expect()` calls.
+- Test-as-checkbox without assertions. The ESLint rule fails lint on any `[ID]`-titled test body that contains zero `expect()` calls.
 
 **What this does NOT prevent:**
 

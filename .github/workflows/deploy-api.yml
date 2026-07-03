@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-api-${{ github.event.inputs.environment || 'production' }}
+  group: deploy-api-${{ inputs.environment || 'production' }}
   cancel-in-progress: false
 
 env:
@@ -35,6 +35,7 @@ jobs:
   preflight:
     name: Preflight (skip if not configured)
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       configured: ${{ steps.check.outputs.configured }}
     steps:
@@ -51,11 +52,12 @@ jobs:
           fi
 
   deploy:
-    name: Deploy to ${{ github.event.inputs.environment || 'production' }}
+    name: Deploy to ${{ inputs.environment || 'production' }}
     needs: preflight
     if: needs.preflight.outputs.configured == 'true'
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'production' }}
+    timeout-minutes: 30
+    environment: ${{ inputs.environment || 'production' }}
     steps:
       - uses: actions/checkout@v6
 
@@ -108,8 +110,21 @@ jobs:
       - name: Extract deployed API URL
         id: cdk
         working-directory: ${{ env.CDK_DIR }}
+        # Print the first *ApiUrl output and stop; a plain `break` only exits the
+        # inner loop and a second stack with an ApiUrl output would corrupt the
+        # value with a newline.
         run: |
-          URL=$(node -e "const o=require('./cdk-outputs.json'); for(const k of Object.keys(o)) for(const k2 of Object.keys(o[k])) if(k2.endsWith('ApiUrl')) { console.log(o[k][k2]); break; }")
+          URL=$(node -e '
+            const outputs = require("./cdk-outputs.json");
+            outer: for (const stack of Object.keys(outputs)) {
+              for (const key of Object.keys(outputs[stack])) {
+                if (key.endsWith("ApiUrl")) { console.log(outputs[stack][key]); break outer; }
+              }
+            }')
+          if [ -z "$URL" ]; then
+            echo "No *ApiUrl output found in cdk-outputs.json" >&2
+            exit 1
+          fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "Deployed: $URL"
 

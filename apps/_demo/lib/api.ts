@@ -36,8 +36,7 @@ export function localHeuristic(text: string): CheckResult {
   const t = text.toLowerCase();
   const hasLink = /https?:\/\/|\bwww\./.test(t);
   const lure = /(verify|urgent|prize|gift|otp|password|bank|click)/.test(t);
-  if (hasLink && lure)
-    return { verdict: "scam", score: 0.9, reason: "Link plus urgency lure." };
+  if (hasLink && lure) return { verdict: "scam", score: 0.9, reason: "Link plus urgency lure." };
   if (hasLink || lure)
     return {
       verdict: "suspicious",

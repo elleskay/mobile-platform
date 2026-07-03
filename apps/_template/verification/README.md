@@ -20,7 +20,7 @@ behavior (call/SMS interception runs out of process). See
   canonical body minus the signature, stamped by `spec-attest`. The gate
   recomputes and compares, so editing the body after stamping (e.g. bumping
   `date` to dodge the TTL) is caught as `tampered`. Run `spec-attest --artifact
-  <file>` to stamp, `--check` to verify.
+<file>` to stamp, `--check` to verify.
 - **B, accountability (signed commit):** the binding attestation is the GPG/SSH
   signature on the commit that last touched the artifact, by a signer in
   `allowed-signers`. Enforced in CI by `scripts/verify-attestations.sh`, which

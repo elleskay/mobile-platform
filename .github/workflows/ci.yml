@@ -6,6 +6,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -14,16 +17,19 @@ jobs:
   workflow-lint:
     name: Workflow lint (actionlint)
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
       - name: Run actionlint
-        uses: docker://rhysd/actionlint:latest
+        # Pinned tag (not :latest) so runs are reproducible; bump deliberately.
+        uses: docker://rhysd/actionlint:1.7.7
         with:
           args: -color
 
   typecheck:
-    name: Typecheck
+    name: Typecheck (all workspaces)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -31,11 +37,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run typecheck --if-present
+      - run: npm run typecheck
 
   lint:
-    name: Lint
+    name: Lint + format (all workspaces)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -43,11 +50,26 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run lint --if-present
+      - run: npm run lint
+      - run: npm run format:check
+
+  test:
+    name: Test (all workspaces)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
 
   app-check:
-    name: Expo app (typecheck + doctor)
+    name: Expo app (doctor + prebuild + web export)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [typecheck, lint]
     steps:
       - uses: actions/checkout@v6
@@ -56,12 +78,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Typecheck demo app
-        working-directory: apps/_demo
-        run: npm run typecheck
-      - name: expo-doctor
+      - name: expo-doctor (advisory)
+        # Advisory only: doctor flags upstream SDK drift the template cannot
+        # always act on immediately. Failures surface in the log, not the gate.
         working-directory: apps/_demo
         run: npx --yes expo-doctor@latest || true
+      - name: Prebuild dry-run (config plugins resolve)
+        working-directory: apps/_demo
+        run: npx expo prebuild --platform android --no-install
       - name: Web export (verify the web build)
         working-directory: apps/_demo
         run: npx expo export --platform web
@@ -69,6 +93,7 @@ jobs:
   api-build:
     name: Build demo API (NestJS)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [typecheck, lint]
     steps:
       - uses: actions/checkout@v6
@@ -84,6 +109,7 @@ jobs:
   cdk-synth:
     name: CDK synth (proves construct works against demo API)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: api-build
     steps:
       - uses: actions/checkout@v6
@@ -94,7 +120,7 @@ jobs:
       - run: npm ci
       - name: Install CDK package deps
         working-directory: infra/cdk/_template
-        run: npm install
+        run: npm ci
       - name: cdk synth
         working-directory: infra/cdk/_template
         env:
@@ -105,21 +131,10 @@ jobs:
           PLATFORM_DEMO_API_PATH: services/_template
         run: npx cdk synth
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm test --if-present
-
   spec-test:
     name: spec-test (build + gate self-test)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -145,6 +160,9 @@ jobs:
             exit 1
           fi
           echo "gate correctly exits 1 on partial coverage"
+      - name: ESLint rule self-test (flags assertion-less spec tests)
+        working-directory: packages/spec-test
+        run: node samples/eslint.test.mjs
       - name: Native gate passes with fresh, stamped artifacts (expected exit 0)
         working-directory: packages/spec-test
         run: node dist/cli.js --spec samples/native.spec.yml --coverage samples/native-results.jsonl --verification-dir samples/verification --app-version 1.4.0 --now 2026-05-25 --out /tmp/native.md
@@ -164,6 +182,7 @@ jobs:
   attestations:
     name: Native artifact attestations (layer B)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:

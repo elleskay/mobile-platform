@@ -20,10 +20,7 @@ export class ApiError extends Error {
  * Thin authenticated fetch wrapper for the NestJS API. Attaches the device's
  * access token, sends/parses JSON, throws ApiError on non-2xx.
  */
-export async function apiFetch<T>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = await getAccessToken();
   const res = await fetch(`${API_URL}${path}`, {
     ...init,

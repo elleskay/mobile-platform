@@ -1,4 +1,4 @@
-# services/_template
+# services/\_template
 
 NestJS API for the mobile platform (a workspace, so root `npm ci` installs its
 deps and the platform CI can build it). Copy to `services/api/` and rename. Runs as
@@ -37,6 +37,8 @@ npm test            # vitest + spec coverage recording
 
 ## Deploy
 
-Bundled and deployed by `infra/cdk/_template` (the `NestjsApi` construct points
-its HTTP Lambda at `src/lambda.ts` and its worker at `src/reports/reports.consumer.ts`).
-See `docs/DEPLOY.md`.
+Staged and deployed by `infra/cdk/_template`: the `NestjsApi` construct points
+its HTTP Lambda at `lambda.handler` (`src/lambda.ts`) and its worker at
+`worker.handler` (`src/worker.ts`, a root re-export of
+`src/reports/reports.consumer.ts`; the handler must live at the bundle root,
+see CLAUDE.md gotcha #11). See `docs/DEPLOY.md`.

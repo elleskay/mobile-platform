@@ -42,9 +42,7 @@ export class SetupStack extends cdk.Stack {
     );
 
     const policyPath = path.resolve(__dirname, "..", "..", "..", "iam", "cdk-deploy-policy.json");
-    const policyDoc = iam.PolicyDocument.fromJson(
-      JSON.parse(fs.readFileSync(policyPath, "utf-8")),
-    );
+    const policyDoc = iam.PolicyDocument.fromJson(JSON.parse(fs.readFileSync(policyPath, "utf-8")));
 
     const role = new iam.Role(this, "DeployRole", {
       roleName: props.roleName,

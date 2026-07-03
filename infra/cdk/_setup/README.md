@@ -20,8 +20,9 @@ After this stack exists, the deploy workflow can assume the role via OIDC. No lo
 ## Prerequisites
 
 You need AWS credentials that can:
+
 - Create an IAM role
-- Read the existing OIDC provider (or create one, if missing — see Caveats)
+- Read the existing OIDC provider (or create one, if missing; see Caveats)
 - Run CloudFormation
 
 The simplest path: use the AWS root account or a user with `IAMFullAccess` for this one-time deploy. After the role exists, the role itself takes over via OIDC and you don't need broad credentials again.
@@ -37,16 +38,18 @@ The role is locked to the named repo; another repo on the same OIDC provider can
 
 ## Caveats
 
-- **OIDC provider must already exist** in the account. AWS only allows one per issuer (`token.actions.githubusercontent.com`). The stack uses `fromOpenIdConnectProviderArn` rather than creating it, which assumes it's there. If you're on a fresh account, create the provider once via CLI:
+- **OIDC provider must already exist** in the account. AWS only allows one per issuer (`token.actions.githubusercontent.com`). The stack uses `fromOpenIdConnectProviderArn` rather than creating it, which assumes it's there. `scripts/connect.sh` creates it when missing; to do it by hand on a fresh account:
+
   ```bash
   aws iam create-open-id-connect-provider \
     --url https://token.actions.githubusercontent.com \
     --client-id-list sts.amazonaws.com \
-    --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
+    --thumbprint-list 1c58a3a8518e8759bf075b76b750d4f2df264fcd
   ```
-  Then run this stack. (A future version of this stack could provision the provider conditionally.)
 
-- **The role's policy is `cdk-deploy` from `infra/iam/cdk-deploy-policy.json`**, which is permissive (`s3:*`, `lambda:*`, `cloudfront:*`). Fine for portfolio scale; tighten resource ARNs for production.
+  (AWS has ignored the thumbprint for GitHub's OIDC issuer since 2023, but the API still requires one.) Then run this stack.
+
+- **The role's policy is `cdk-deploy` from `infra/iam/cdk-deploy-policy.json`**, which is permissive on the services the stack uses (`lambda:*`, `apigateway:*`, `sqs:*`, `es:*`, `s3:*`). Fine for portfolio scale; tighten resource ARNs for production.
 
 ## Updating the policy later
 

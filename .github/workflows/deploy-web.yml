@@ -10,10 +10,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Least privilege by default; the deploy job declares what Pages needs.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -30,6 +29,7 @@ jobs:
   preflight:
     name: Preflight (skip unless opted in)
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       enabled: ${{ steps.check.outputs.enabled }}
     steps:
@@ -48,6 +48,11 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # configure-pages with `enablement: true` creates the Pages site via API.
+      pages: write
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -74,6 +79,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

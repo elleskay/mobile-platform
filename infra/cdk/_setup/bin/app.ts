@@ -22,7 +22,9 @@ if (!/^[^/]+\/[^/]+$/.test(repo)) {
   throw new Error(`Context 'repo' must be '<owner>/<name>', got '${repo}'`);
 }
 
-const roleName = (app.node.tryGetContext("roleName") as string | undefined) ?? `github-actions-${repo.split("/")[1]}`;
+const roleName =
+  (app.node.tryGetContext("roleName") as string | undefined) ??
+  `github-actions-${repo.split("/")[1]}`;
 
 new SetupStack(app, `PlatformSetup-${repo.replace("/", "-")}`, {
   env,

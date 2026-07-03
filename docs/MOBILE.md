@@ -8,11 +8,11 @@ native call/SMS extensions that JavaScript cannot implement.
 The signature features (call blocking/identification, SMS filtering) are OS
 extension points. The system, not the app, invokes them, out of process:
 
-| Feature | iOS | Android |
-|---|---|---|
-| Call block / identify | Call Directory Extension (CallKit) | `CallScreeningService` + call-screening role |
-| SMS filtering | `ILMessageFilterExtension` (IdentityLookup) | default-SMS role / SMS handling |
-| Live caller lookup (optional) | Live Caller ID Lookup (iOS 18) | n/a |
+| Feature                       | iOS                                         | Android                                      |
+| ----------------------------- | ------------------------------------------- | -------------------------------------------- |
+| Call block / identify         | Call Directory Extension (CallKit)          | `CallScreeningService` + call-screening role |
+| SMS filtering                 | `ILMessageFilterExtension` (IdentityLookup) | default-SMS role / SMS handling              |
+| Live caller lookup (optional) | Live Caller ID Lookup (iOS 18)              | n/a                                          |
 
 The JS app manages data (block lists, reports, settings) and writes the shared
 state the extensions read (iOS App Group container; Android local store). The
@@ -31,7 +31,7 @@ reference implementations are in `apps/_template/native/`.
      manifest and compiles into the release APK.
    - **iOS (partial):** `withIosCallDirectory` / `withIosMessageFilter` add the
      App Group entitlement and stage the Swift under `ios/Extensions/`. They do
-     **not** create the Call Directory / Message Filter App Extension *targets* —
+     **not** create the Call Directory / Message Filter App Extension _targets_;
      that needs `@bacons/apple-targets` (point it at the staged Swift) plus an
      Apple Developer account for the per-extension App IDs, App Group, the
      `com.apple.developer.sms-spam-filter` entitlement, and provisioning profiles.

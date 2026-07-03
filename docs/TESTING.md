@@ -15,8 +15,10 @@ tests can see.
 
 ```
 specs/<app>.yml                  -> declares requirements with IDs
-tests/unit/*.spec.ts             -> Vitest tests for pure logic (data)
-tests/e2e/*.e2e.ts               -> Maestro flows for UI on device or emulator
+tests/unit/*.spec.ts             -> jest-expo tests for pure app logic (data)
+tests/component/*.spec.tsx       -> jest-expo + RNTL tests for screens (ui)
+.maestro/*.yaml                  -> Maestro e2e flows on device or emulator
+verification/*.yml               -> signed real-device artifacts (native/manual)
 services/api/.../*.spec.ts       -> Vitest tests for API logic
 @platform/spec-test (runner)     -> records per-test pass/fail to JSONL
 spec-coverage CLI                -> diffs spec IDs vs covered IDs, exits 1 if any uncovered
@@ -27,21 +29,21 @@ CI workflow                      -> runs the above, gates deploy
 ## Spec file format
 
 ```yaml
-app: <appname>          # required
-version: 1              # required, integer
+app: <appname> # required
+version: 1 # required, integer
 requirements:
-  - id: <APP>-<DOMAIN>-<NNN>   # required, unique, e.g. SCAM-REPORT-004
-    title: One-line summary    # required, 5..200 chars
-    category: functional       # required: functional | ui | security | data | a11y
-    severity: high             # required: critical | high | medium | low
-    given: Precondition        # required
-    when: Action               # required
-    then: Expected outcome     # required
-    verify: e2e                # optional: unit|component|integration|contract|e2e|native|manual
-    platforms: [ios, android]  # optional: required result per platform for e2e/native
-    tags: [check-and-report]   # optional
-    depends_on: []             # optional, must reference other valid IDs
-    notes: Free-form notes     # optional
+  - id: <APP>-<DOMAIN>-<NNN> # required, unique, e.g. SCAM-REPORT-004
+    title: One-line summary # required, 5..200 chars
+    category: functional # required: functional | ui | security | data | a11y
+    severity: high # required: critical | high | medium | low
+    given: Precondition # required
+    when: Action # required
+    then: Expected outcome # required
+    verify: e2e # optional: unit|component|integration|contract|e2e|native|manual
+    platforms: [ios, android] # optional: required result per platform for e2e/native
+    tags: [check-and-report] # optional
+    depends_on: [] # optional, must reference other valid IDs
+    notes: Free-form notes # optional
 ```
 
 The schema is enforced by zod. Unknown fields, duplicate IDs, and invalid
@@ -66,7 +68,7 @@ per requirement and per platform, committed under `verification/`:
 requirement: SCAM-SMS-001
 platform: ios
 app_version: 1.4.0
-os_tested: "18.3.1"     # the OS build actually exercised
+os_tested: "18.3.1" # the OS build actually exercised
 device: iPhone 13
 date: 2026-05-20
 tester: elleskay
@@ -218,10 +220,14 @@ passing test is in the wrong layer. The build is not done until it exits 0.
 
 ## CI workflow
 
-Copy `apps/_template/.github/workflows/test.yml` into the app. Data + coverage
-run on every push (Ubuntu, with a Postgres service for API tests). The Maestro e2e
-job runs on macOS with a simulator and is gated to PRs to control cost. The
-deploy workflow should depend on the gate so a red spec blocks deploy.
+Copy `apps/_template/.github/workflows/test.yml` into the app. Unit + component
+(jest-expo) and the attestation check run on every push (Ubuntu). The Maestro e2e
+job is gated to PRs and runs on a free Ubuntu runner: it builds a release APK
+(JS bundled, no Metro), boots a KVM-accelerated Android emulator, starts the real
+API on the host, and drives the journey flows. iOS journey e2e is intentionally
+left out (ADR 0001): the critical iOS behavior is proven in the native-artifact
+layer, so macOS-runner cost is not justified. The deploy workflow should depend
+on the gate so a red spec blocks deploy.
 
 ## Failure modes the gate catches
 

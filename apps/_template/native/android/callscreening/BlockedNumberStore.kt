@@ -32,7 +32,7 @@ object BlockedNumberStore {
         set.add(arr.getString(i).filter { it.isDigit() })
       }
       set
-    } catch (e: Exception) {
+    } catch (_: Exception) {
       emptySet()
     }
   }

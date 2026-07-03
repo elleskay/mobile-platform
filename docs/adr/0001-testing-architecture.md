@@ -43,9 +43,9 @@ Add two fields to each requirement and split "what kind of requirement" from
 requirements:
   - id: SCAM-SMS-001
     title: Known-scam SMS is filtered by the OS
-    category: functional          # taxonomy, unchanged: functional|ui|security|data|a11y
-    verify: native                # NEW: unit|component|integration|contract|e2e|native|manual
-    platforms: [ios, android]     # NEW: required result per platform for e2e/native
+    category: functional # taxonomy, unchanged: functional|ui|security|data|a11y
+    verify: native # NEW: unit|component|integration|contract|e2e|native|manual
+    platforms: [ios, android] # NEW: required result per platform for e2e/native
     severity: critical
     given: ...
     when: ...
@@ -70,14 +70,14 @@ instead of a guess.
 
 ### 3. Runners per layer
 
-| Layer        | App                          | API                                   | Native              |
-|--------------|------------------------------|---------------------------------------|---------------------|
-| Unit         | jest-expo                    | vitest                                | -                   |
-| Component    | jest-expo + RNTL             | -                                     | -                   |
-| Integration  | -                            | Nest TestingModule + Testcontainers / LocalStack (real Postgres + SQS) | - |
-| Contract     | derives client types from `packages/contracts` | derives DTO validation from `packages/contracts` | - |
-| E2E          | Maestro (YAML flows, same on both platforms) | supertest against the running app   | -                   |
-| Native/Manual| -                            | -                                     | XCTest / Espresso or real-device checklist |
+| Layer         | App                                            | API                                                                    | Native                                     |
+| ------------- | ---------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------ |
+| Unit          | jest-expo                                      | vitest                                                                 | -                                          |
+| Component     | jest-expo + RNTL                               | -                                                                      | -                                          |
+| Integration   | -                                              | Nest TestingModule + Testcontainers / LocalStack (real Postgres + SQS) | -                                          |
+| Contract      | derives client types from `packages/contracts` | derives DTO validation from `packages/contracts`                       | -                                          |
+| E2E           | Maestro (YAML flows, same on both platforms)   | supertest against the running app                                      | -                                          |
+| Native/Manual | -                                              | -                                                                      | XCTest / Espresso or real-device checklist |
 
 ### 4. Native and manual requirements get a signed verification artifact
 
@@ -89,7 +89,7 @@ requires a committed artifact per requirement (and per platform):
 requirement: SCAM-SMS-001
 platform: ios
 app_version: 1.4.0
-os_tested: "18.3.1"          # the OS build actually exercised
+os_tested: "18.3.1" # the OS build actually exercised
 device: iPhone 13
 date: 2026-05-20
 tester: elleskay
@@ -189,18 +189,21 @@ requirements in the first increment, not the last.
 ## Consequences
 
 **Positive**
+
 - The gate stops giving false confidence on the features that define the app.
 - Most verification load moves to cheap, fast layers (unit/component/contract).
 - The app<->API seam is tested, not assumed, with its limits stated.
 - `verify` + `platforms` make the verification posture explicit and auditable.
 
 **Negative / costs**
+
 - More moving parts: Testcontainers/LocalStack, a contracts package, RNTL, a
   native verification process with human sign-off.
 - Detox (if chosen) adds macOS CI cost and flake.
 - The artifact TTL creates recurring manual re-verification work, by design.
 
 **Risks**
+
 - OS-baseline upkeep is manual; the TTL is the mitigation when it lapses.
 - A heavy gate can tempt people to weaken `verify` levels to go green. Review
   discipline on spec changes is the control.

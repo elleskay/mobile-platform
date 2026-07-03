@@ -32,7 +32,7 @@ export default function CheckScreen() {
         testID="check-button"
         style={[styles.button, (busy || !text) && styles.buttonDisabled]}
         disabled={busy || !text}
-        onPress={onCheck}
+        onPress={() => void onCheck()}
       >
         <Text style={styles.buttonText}>{busy ? "Checking..." : "Check"}</Text>
       </Pressable>

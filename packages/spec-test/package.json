@@ -6,6 +6,22 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "playwright": [
+        "./dist/playwright.d.ts"
+      ],
+      "vitest": [
+        "./dist/vitest.d.ts"
+      ],
+      "jest": [
+        "./dist/jest.d.ts"
+      ],
+      "maestro": [
+        "./dist/maestro.d.ts"
+      ]
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -38,7 +54,10 @@
     "spec-attest": "./dist/attest.js",
     "spec-maestro": "./dist/maestro.js"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({type:'commonjs'}))\"",
     "typecheck": "tsc --noEmit",
@@ -53,14 +72,18 @@
     "vitest": "^2.0.0"
   },
   "peerDependenciesMeta": {
-    "@playwright/test": { "optional": true },
-    "vitest": { "optional": true }
+    "@playwright/test": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@playwright/test": "^1.48.0",
     "@types/eslint": "^9.0.0",
     "@types/estree": "^1.0.0",
-    "@types/node": "^20.0.0",
+    "@types/node": "^22.0.0",
     "eslint": "^9.0.0",
     "typescript": "^5.4.0",
     "vitest": "^2.0.0"

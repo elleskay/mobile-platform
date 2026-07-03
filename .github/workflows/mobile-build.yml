@@ -32,6 +32,12 @@ on:
 permissions:
   contents: read
 
+# One EAS operation per profile at a time; a second dispatch queues rather than
+# racing the first (EAS Update channel pushes are order-sensitive).
+concurrency:
+  group: mobile-${{ inputs.profile }}
+  cancel-in-progress: false
+
 env:
   APP_DIR: ${{ vars.APP_DIR || 'apps/_demo' }}
   NODE_VERSION: "22"
@@ -40,6 +46,7 @@ jobs:
   preflight:
     name: Preflight (skip if EAS not configured)
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       configured: ${{ steps.check.outputs.configured }}
     steps:
@@ -55,10 +62,13 @@ jobs:
           fi
 
   eas:
-    name: EAS ${{ github.event.inputs.action }} (${{ github.event.inputs.profile }})
+    name: EAS ${{ inputs.action }} (${{ inputs.profile }})
     needs: preflight
     if: needs.preflight.outputs.configured == 'true'
     runs-on: ubuntu-latest
+    # eas build waits for the EAS cloud build to finish; store builds can take
+    # a while. The runner is idle-polling, not building.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -72,14 +82,14 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       - name: EAS build
-        if: github.event.inputs.action == 'build'
+        if: inputs.action == 'build'
         working-directory: ${{ env.APP_DIR }}
         run: |
           SUBMIT_FLAG=""
-          if [ "${{ github.event.inputs.submit }}" = "true" ]; then SUBMIT_FLAG="--auto-submit"; fi
-          eas build --non-interactive --profile "${{ github.event.inputs.profile }}" --platform all $SUBMIT_FLAG
+          if [ "${{ inputs.submit }}" = "true" ]; then SUBMIT_FLAG="--auto-submit"; fi
+          eas build --non-interactive --profile "${{ inputs.profile }}" --platform all $SUBMIT_FLAG
       - name: EAS update (OTA)
-        if: github.event.inputs.action == 'update'
+        if: inputs.action == 'update'
         working-directory: ${{ env.APP_DIR }}
         run: |
-          eas update --non-interactive --branch "${{ github.event.inputs.profile }}" --message "ci: ${{ github.sha }}"
+          eas update --non-interactive --branch "${{ inputs.profile }}" --message "ci: ${{ github.sha }}"
