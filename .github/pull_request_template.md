@@ -17,7 +17,7 @@
 - [ ] Lint passes
 - [ ] Tests added or updated (if applicable)
 - [ ] No secrets committed
-- [ ] Security implications considered (see SSDLC.md)
+- [ ] Security implications considered (see docs/SSDLC.md)
 - [ ] Docs updated (if applicable)
 
 ## Related issues

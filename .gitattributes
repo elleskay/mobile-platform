@@ -1,0 +1,4 @@
+# LF in the repo and in every checkout, matching .editorconfig and Prettier.
+# Without this, Git for Windows (core.autocrlf=true) checks files out as CRLF,
+# which fails `npm run format:check` and breaks the bash scripts.
+* text=auto eol=lf

@@ -25,7 +25,7 @@ You need AWS credentials that can:
 - Read the existing OIDC provider (or create one, if missing; see Caveats)
 - Run CloudFormation
 
-The simplest path: use the AWS root account or a user with `IAMFullAccess` for this one-time deploy. After the role exists, the role itself takes over via OIDC and you don't need broad credentials again.
+The simplest path: an administrator IAM user or SSO role for this one-time deploy (avoid the root account; `IAMFullAccess` alone cannot bootstrap CDK). After the role exists, the role itself takes over via OIDC and you don't need broad credentials again.
 
 ## What it creates
 

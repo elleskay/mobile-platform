@@ -18,14 +18,13 @@ This template provides platform-layer security defaults for a mobile app plus it
 
 - Dependency scanning via Dependabot
 - Code scanning via GitHub CodeQL
-- Secret scanning via GitHub native
-- Input validation via Zod / class-validator at every NestJS controller boundary
-- JWT auth on the API, short-lived access tokens issued to the mobile client
-- Rate limiting on sensitive API routes
-- Secrets managed via AWS Secrets Manager and EAS secrets (not env files in prod)
+- Secret scanning via GitHub native and gitleaks
+- Keyless deploys: GitHub OIDC into a repo-scoped, least-privilege IAM role
+- Input validation via class-validator DTOs behind a global `ValidationPipe` that rejects unknown fields
+- Secrets in GitHub Actions secrets, the Lambda environment, and EAS secrets, never in committed env files
 - App Transport Security (iOS) and cleartext-traffic disabled (Android); TLS only
 - No secrets baked into the mobile bundle (anything shipped to the device is public)
 
-Apps built on this template are expected to maintain these defaults and add app-specific controls as needed.
+Apps built on this template are expected to maintain these defaults and add app-specific controls, including JWT issuing, authorization guards, and rate limiting on sensitive routes.
 
 See `docs/SSDLC.md` for the secure development lifecycle this template assumes.

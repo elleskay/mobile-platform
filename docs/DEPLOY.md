@@ -27,6 +27,8 @@ unset. See `docs/MOBILE.md`.
 
 ## Gotchas the platform has hit (do not relearn)
 
+Same numbering as `CLAUDE.md`; code comments cite these as "gotcha #N".
+
 1. **Native call/SMS features are not JS.** iOS needs a Call Directory extension
    and an `ILMessageFilterExtension`; Android needs `CallScreeningService` and
    the call-screening / default-SMS role. App extensions in Swift/Kotlin, wired
@@ -49,8 +51,30 @@ unset. See `docs/MOBILE.md`.
    permission, new extension) needs a full store build, not an OTA push.
 10. **Refactoring resources into a construct changes logical IDs.** Use
     `logicalIdOverrides` on `NestjsApi` for in-place upgrades.
-11. **OpenSearch domains are not free and take ~15 min to create/delete.** Off by
-    default (`enableOpenSearch: false`); turn on only when you need clustering.
+11. **Lambda handlers must be root-level files with no dot in the name.** The
+    nodejs22.x runtime splits the handler string on the first dot, so
+    `reports/reports.consumer.handler` parses to module `reports/reports` and
+    init fails with `Cannot find module 'reports'`. Hence `lambda.handler` and
+    `worker.handler` (`src/worker.ts` re-exports the consumer).
+12. **Android e2e in CI needs a release APK.** A debug build loads its JS from a
+    Metro dev server that CI does not run, so Maestro finds no UI. Build
+    `assembleRelease` (bundle embedded), set `EXPO_PUBLIC_API_URL` to
+    `http://10.0.2.2:3000` (the emulator's alias for the host), and guard each
+    flow's first `tapOn` with `extendedWaitUntil`.
+    `apps/_template/.github/workflows/test.yml` does all three.
+13. **An ESM-only dependency crashes Lambda init.** `nest build` emits CommonJS,
+    so `require()` of an ESM-only package throws `ERR_REQUIRE_ESM` before the
+    handler runs, and SQS messages pile into the DLQ (hit with
+    `expo-server-sdk`). Prefer the global `fetch`, else `await import()`, else a
+    CJS release.
+14. **Prisma needs the arm64 engine, and Prisma 6.** Set
+    `binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]`; `NestjsApi`
+    generates the client into the bundle and strips the other engines. Prisma 7
+    breaks this layout. Migrations run from `db/migrate.ts` (step 3 above).
+
+OpenSearch domains are not free and take about 15 minutes to create or delete,
+so the construct leaves them off (`enableOpenSearch: false`) until you need
+clustering.
 
 ## Rollback
 

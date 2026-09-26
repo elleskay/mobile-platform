@@ -68,11 +68,12 @@ Gradle step to a workflow, pin `actions/setup-java` to temurin 17.
 npm i -g eas-cli
 eas login
 eas init                  # creates the EAS project, writes the project id
-eas build:configure       # creates eas.json with build profiles
 ```
 
-Set `EXPO_TOKEN` as a GitHub secret for the CI build workflow. Set
-`EXPO_PUBLIC_API_URL` (build-time, public) to the deployed API URL.
+Build profiles come from `apps/_template/eas.json`; copy it into the app rather
+than running `eas build:configure`. Set `EXPO_TOKEN` as a GitHub secret for the
+CI build workflow. Set `EXPO_PUBLIC_API_URL` (build-time, public) to the
+deployed API URL.
 
 ## Credentials
 

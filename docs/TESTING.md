@@ -2,7 +2,8 @@
 
 Every app on this platform is tested against a YAML spec. Every requirement must
 have a passing test whose title is prefixed with the requirement ID and that
-contains at least one `expect()`. CI gates merge and deploy on 100% spec coverage.
+contains at least one `expect()`. CI fails below 100% spec coverage; branch
+protection turns that into a merge block (`docs/SETUP.md`, step 7).
 
 You should rarely need to manually verify an app works. If a spec entry has no
 passing test, CI fails. The gate catches structural regressions; for the

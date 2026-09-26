@@ -23,6 +23,6 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
   },
   {
-    ignores: ["dist/**", "build/**", ".next/**", "cdk.out/**", "node_modules/**"],
+    ignores: ["dist/**", "build/**", "cdk.out/**", "node_modules/**"],
   },
 );

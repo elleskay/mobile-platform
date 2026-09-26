@@ -18,5 +18,5 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "exclude": ["node_modules", "dist", "build", ".next", "cdk.out"]
+  "exclude": ["node_modules", "dist", "build", "cdk.out"]
 }

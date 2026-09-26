@@ -4,16 +4,17 @@ What this template gives you out of the box, and what each app is expected to ma
 
 ## What the template provides
 
-| Control                            | Where                                     |
-| ---------------------------------- | ----------------------------------------- |
-| Dependency scanning                | `.github/dependabot.yml`                  |
-| Code scanning (SAST)               | `.github/workflows/security.yml` (CodeQL) |
-| Secret scanning                    | GitHub native + gitleaks workflow         |
-| `npm audit` on CI                  | `.github/workflows/security.yml`          |
-| Branch protection                  | manual GitHub setting (see SETUP.md)      |
-| Conventional commits               | `commitlint.config.mjs`                   |
-| PR template with security checkbox | `.github/pull_request_template.md`        |
-| Disclosure policy                  | `SECURITY.md`                             |
+| Control                            | Where                                           |
+| ---------------------------------- | ----------------------------------------------- |
+| Dependency scanning                | `.github/dependabot.yml`                        |
+| Code scanning (SAST)               | `.github/workflows/security.yml` (CodeQL)       |
+| Secret scanning                    | GitHub native + gitleaks workflow               |
+| `npm audit` on CI                  | `.github/workflows/security.yml`                |
+| Keyless, least-privilege deploys   | `infra/cdk/_setup/`, `infra/iam/`               |
+| Branch protection                  | manual GitHub setting (`docs/SETUP.md`, step 7) |
+| Conventional commits               | `commitlint.config.mjs`                         |
+| PR template with security checkbox | `.github/pull_request_template.md`              |
+| Disclosure policy                  | `SECURITY.md`                                   |
 
 ## What each app must add
 
@@ -46,7 +47,7 @@ If a vulnerability is found:
 
 1. Acknowledge to reporter within 72 hours
 2. Patch in a private branch
-3. Rotate any leaked secrets via AWS Secrets Manager
+3. Rotate any leaked secret where it lives (GitHub Actions or EAS secrets), then redeploy: the Lambda environment is baked at synth
 4. Deploy fix
 5. Disclose publicly after patch is live
 

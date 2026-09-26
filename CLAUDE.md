@@ -6,20 +6,28 @@ This repo is a platform-layer template for React Native (Expo) apps backed by a 
 
 ```
 apps/
-├── _template/                       # Overlay references for an Expo app
-│   ├── app.config.ts                # Expo config + config plugins for native modules
+├── _template/                       # Overlay references for an Expo app (not runnable alone)
+│   ├── app.config.ts                # Expo config + the native config plugins
+│   ├── eas.json                     # EAS build + submit profiles
+│   ├── plugins/                     # Config plugins that inject native/ at prebuild
 │   ├── native/
-│   │   ├── ios/CallDirectory/        # CallKit Call Directory extension (Swift) reference
-│   │   ├── ios/MessageFilter/        # ILMessageFilterExtension (Swift) reference
-│   │   └── android/callscreening/    # CallScreeningService + SMS role (Kotlin) reference
-│   ├── lib/api.ts                    # Typed API client (reads EXPO_PUBLIC_API_URL)
-│   ├── lib/push.ts                   # Expo push registration (no-ops without project id)
-│   ├── lib/auth.ts                   # Secure token storage (expo-secure-store)
-│   ├── specs/                        # Spec YAML lives here per app
-│   ├── tests/                        # jest-expo (unit + component) + Maestro (e2e) scaffolding
+│   │   ├── ios/CallDirectory/       # CallKit Call Directory extension (Swift) reference
+│   │   ├── ios/MessageFilter/       # ILMessageFilterExtension (Swift) reference
+│   │   └── android/callscreening/   # CallScreeningService + blocklist store (Kotlin) reference
+│   ├── lib/api.ts                   # Typed API client (reads EXPO_PUBLIC_API_URL)
+│   ├── lib/auth.ts                  # Access-token storage, via lib/secure-storage.ts
+│   ├── lib/secure-storage.ts        # expo-secure-store on native, localStorage on web
+│   ├── lib/push.ts                  # Expo push registration (no-ops without project id)
+│   ├── lib/classifier.ts            # Offline scam heuristic (mirrors the API's)
+│   ├── specs/                       # Spec YAML lives here per app
+│   ├── tests/                       # jest-expo unit + component tests and setup files
+│   ├── .maestro/                    # Maestro e2e flows
+│   ├── verification/                # Signed native/manual artifacts, OS baseline, signers
+│   ├── jest.config.js, babel.config.js
+│   ├── .github/workflows/test.yml   # Per-app test workflow (jest, attestations, Maestro e2e)
 │   └── README.md
-└── _demo/                            # Working demo Expo app. Platform CI typechecks +
-                                      # prebuild-dry-runs this and synths the construct.
+└── _demo/                           # Working demo Expo app: one check screen. Platform CI
+                                     # typechecks, lints, prebuild-dry-runs, and web-exports it.
 
 services/
 ├── _template/                       # Full NestJS service (a workspace). Copy to services/<app>.
@@ -33,6 +41,11 @@ services/
 │   ├── src/search/opensearch.service.ts  # Scam-message clustering client (no-ops without endpoint)
 │   └── src/classifier/              # LLM scam/phishing classifier hook (no-ops without key)
 
+packages/
+└── spec-test/                       # @platform/spec-test: spec parser, per-runner recorders,
+                                     # spec-coverage gate, spec-attest, ESLint rule.
+                                     # samples/ holds the fixtures CI self-tests run against.
+
 infra/
 ├── cdk/_template/                   # Full CDK package. Copy and rename per app.
 │   ├── bin/app.ts
@@ -43,7 +56,12 @@ infra/
 ├── cdk/_setup/                      # One-time stack: GitHub OIDC + IAM role
 └── iam/cdk-deploy-policy.json       # Least-privilege IAM policy
 
-scripts/verify-deploy.sh             # Post-deploy smoke test
+scripts/
+├── connect.sh                       # One-command AWS + GitHub + EAS wiring (npm run setup)
+├── verify-deploy.sh                 # Post-deploy smoke test
+└── verify-attestations.sh           # Signed-commit check on verification artifacts
+
+docs/                                # SETUP, DEPLOY, MOBILE, TESTING, SSDLC, adr/
 
 .github/workflows/
 ├── ci.yml                           # typecheck/lint/test (all workspaces), format check,
@@ -117,7 +135,7 @@ Only the cross-cutting platform layer:
 
 ## Known production gotchas (do not relearn)
 
-All documented in `docs/DEPLOY.md` and `docs/MOBILE.md`. Don't undo the fixes:
+Mirrored with the same numbers in `docs/DEPLOY.md` (native detail in `docs/MOBILE.md`). Don't undo the fixes:
 
 1. **Native call/SMS features cannot be done in JS.** iOS needs a Call Directory extension and an `ILMessageFilterExtension`; Android needs `CallScreeningService` and the call-screening / default-SMS role. These are app extensions in Swift/Kotlin, wired via Expo config plugins. The JS layer only manages data, not the native interception.
 2. **`expo prebuild` is required before any native build.** The managed workflow generates `ios/` and `android/`; the native module references in `apps/_template/native/` are copied in via config plugins, not committed as generated dirs.

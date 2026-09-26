@@ -67,7 +67,7 @@ while [ $# -gt 0 ]; do
     --skip-eas) SKIP_EAS=1; shift;;
     --yes) ASSUME_YES=1; shift;;
     --dry-run) DRY_RUN=1; shift;;
-    -h|--help) sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'; exit 0;;
+    -h|--help) sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; exit 0;;
     *) echo "Unknown option: $1" >&2; exit 2;;
   esac
 done

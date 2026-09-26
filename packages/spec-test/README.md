@@ -73,4 +73,4 @@ signed artifact). It does not verify the spec is correct or complete:
 
 The platform copies, it does not import a published version. Each app pins its own
 snapshot from `packages/` so breaking changes never propagate without explicit
-action. See the platform `README.md` ("Planning the Approach").
+action. See the platform `README.md` (section 9, "Copy, don't import").

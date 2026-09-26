@@ -21,7 +21,9 @@ cp -r services/_template services/api
 ```
 
 Edit `apps/app/app.json` (or add `app.config.ts` from `apps/_template`) with your
-real bundle ids and EAS project id. Edit `services/api/package.json` name.
+real bundle ids and EAS project id. Rename the `name` in both
+`apps/app/package.json` and `services/api/package.json`: each copy starts with
+its template's name, and npm refuses to install two workspaces with one name.
 
 ## 3. Rename the CDK package
 
@@ -84,6 +86,13 @@ Then set the secrets/variables above manually (`gh secret set` / `gh variable se
 Push to `main`. The API deploy workflow assumes the role via OIDC, builds, runs
 `cdk deploy`, and smoke-tests. Set `EXPO_PUBLIC_API_URL` for the app to the
 `ApiUrl` output, then build the app via the mobile workflow.
+
+## 7. Protect `main`
+
+Branch protection is a manual GitHub setting. In **Settings > Branches**, add a
+rule for `main` that requires a pull request and passing CI and Security checks.
+Without it a red gate does not block the merge, and the API deploy runs on every
+push to `main`.
 
 Mobile-specific setup (EAS, credentials, native extensions): `docs/MOBILE.md`.
 Deploy details and gotchas: `docs/DEPLOY.md`.
